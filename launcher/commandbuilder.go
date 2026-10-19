@@ -2,9 +2,9 @@ package launcher
 
 import (
 	"encoding/json"
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/framework/math/math32"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/framework/math/math32"
 	"github.com/wieku/rplpa"
 	"golang.org/x/exp/constraints"
 	"strconv"
@@ -200,7 +200,7 @@ func (b *builder) getArguments() (args []string) {
 
 			data, _ := json.Marshal(list)
 			args = append(args, "-knockout2", string(data))
-		} else if currentMode == DanserReplay {
+		} else if currentMode == TaktChaseReplay {
 			diffClone.AddMod(difficulty.Autoplay)
 		}
 

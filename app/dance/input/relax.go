@@ -1,9 +1,9 @@
 package input
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/rulesets/osu"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/rulesets/osu"
 )
 
 const leniency = 12

@@ -11,7 +11,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/wieku/danser-go/app/settings"
+	"github.com/shntsk/taktchase/app/settings"
 )
 
 var emptyData = make([]byte, 1024)

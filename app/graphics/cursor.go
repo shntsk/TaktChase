@@ -2,19 +2,19 @@ package graphics
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/wieku/danser-go/app/bmath/camera"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/skin"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/blend"
-	"github.com/wieku/danser-go/framework/graphics/buffer"
-	"github.com/wieku/danser-go/framework/graphics/sprite"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/math32"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/bmath/camera"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/skin"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/blend"
+	"github.com/shntsk/taktchase/framework/graphics/buffer"
+	"github.com/shntsk/taktchase/framework/graphics/sprite"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/math32"
+	"github.com/shntsk/taktchase/framework/math/vector"
 	"math"
 	"math/rand"
 	"time"
@@ -118,7 +118,7 @@ func NewCursor() *Cursor {
 	if cursor.lastSetting {
 		cursor.renderer = newOsuRenderer()
 	} else {
-		cursor.renderer = newDanserRenderer()
+		cursor.renderer = newTaktChaseRenderer()
 	}
 
 	skin.GetTexture("cursor-ripple")
@@ -297,7 +297,7 @@ func (cursor *Cursor) UpdateRenderer() {
 		if cursor.lastSetting {
 			cursor.renderer = newOsuRenderer()
 		} else {
-			cursor.renderer = newDanserRenderer()
+			cursor.renderer = newTaktChaseRenderer()
 		}
 	}
 

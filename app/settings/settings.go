@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/itchio/lzma"
-	"github.com/wieku/danser-go/framework/files"
+	"github.com/shntsk/taktchase/framework/files"
 	"io"
 	"log"
 	"os"

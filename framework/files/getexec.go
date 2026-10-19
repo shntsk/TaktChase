@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/wieku/danser-go/framework/env"
+	"github.com/shntsk/taktchase/framework/env"
 )
 
 func GetCommandExec(pkg, cmd string) (string, error) {

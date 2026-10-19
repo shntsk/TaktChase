@@ -7,9 +7,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
 )
 
 func cutWhites(text string) (string, int) {

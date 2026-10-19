@@ -1,9 +1,9 @@
 package evaluators
 
 import (
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp250306/preprocessing"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp250306/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"math"
 	"slices"
 )

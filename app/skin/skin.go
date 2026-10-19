@@ -9,15 +9,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/font"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/font"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
 )
 
 type Source int

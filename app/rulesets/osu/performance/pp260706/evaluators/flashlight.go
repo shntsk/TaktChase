@@ -3,9 +3,9 @@ package evaluators
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
 )
 
 const (
@@ -86,7 +86,7 @@ func EvaluateFlashlight(current *preprocessing.DifficultyObject) float64 {
 		sliderBonus *= pixelTravelDistance
 
 		// Nerf sliders with repeats, as less memorisation is required.
-		// danser's RepeatCount considers first span
+		// taktchase's RepeatCount considers first span
 		// if osuSlider.RepeatCount > 0 {
 		//     sliderBonus /= float64(osuSlider.RepeatCount + 1)
 		// }

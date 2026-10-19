@@ -13,15 +13,15 @@ import (
 
 	"github.com/AllenDang/cimgui-go/imgui"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/qpc"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/qpc"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 type SortBy int

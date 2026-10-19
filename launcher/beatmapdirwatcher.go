@@ -2,7 +2,7 @@ package launcher
 
 import (
 	"github.com/fsnotify/fsnotify"
-	"github.com/wieku/danser-go/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/goroutines"
 	"log"
 	"os"
 	"path/filepath"

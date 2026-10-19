@@ -9,14 +9,14 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/utils"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/utils"
 )
 
 const Tolerance2B = 3

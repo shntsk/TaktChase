@@ -3,10 +3,10 @@ package discord
 import (
 	"fmt"
 	"github.com/nattawitc/rich-go/client"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/build"
-	"github.com/wieku/danser-go/framework/goroutines"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/build"
+	"github.com/shntsk/taktchase/framework/goroutines"
 	"log"
 	"sync"
 	"time"
@@ -86,8 +86,8 @@ func sendActivity(state string) {
 		err := client.SetActivity(client.Activity{
 			State:      state,
 			Details:    mapString,
-			LargeImage: "danser-logo",
-			LargeText:  "danser-go " + build.VERSION,
+			LargeImage: "taktchase-logo",
+			LargeText:  "TaktChase " + build.VERSION,
 			Timestamps: &client.Timestamps{
 				Start: &startTime,
 				End:   &endTime,

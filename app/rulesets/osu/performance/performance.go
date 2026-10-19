@@ -1,14 +1,14 @@
 package performance
 
 import (
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp211112"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp220930"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp241007"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp250306"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp251020"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706"
-	"github.com/wieku/danser-go/app/settings"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp211112"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp220930"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp241007"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp250306"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp251020"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706"
+	"github.com/shntsk/taktchase/app/settings"
 )
 
 var diffCalcInit func() api.IDifficultyCalculator

@@ -1,9 +1,9 @@
 package osu
 
 import (
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
 )
 
 type scoreProcessor interface {

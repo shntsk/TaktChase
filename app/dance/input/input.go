@@ -1,10 +1,10 @@
 package input
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/dance/movers"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/dance/movers"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 const singleTapThreshold = 140

@@ -4,17 +4,17 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/rulesets/osu"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/skin"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/sprite"
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/rulesets/osu"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/skin"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/sprite"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type HitResults struct {

@@ -5,12 +5,12 @@ import (
 	"log"
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp211112/preprocessing"
-	skills2 "github.com/wieku/danser-go/app/rulesets/osu/performance/pp211112/skills"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp211112/preprocessing"
+	skills2 "github.com/shntsk/taktchase/app/rulesets/osu/performance/pp211112/skills"
 )
 
 const (

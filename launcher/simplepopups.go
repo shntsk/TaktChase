@@ -5,10 +5,10 @@ import (
 
 	"github.com/AllenDang/cimgui-go/imgui"
 
-	"github.com/wieku/danser-go/build"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/platform"
+	"github.com/shntsk/taktchase/build"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/platform"
 )
 
 func drawSpeedMenu(bld *builder) {
@@ -120,7 +120,7 @@ func drawAbout(dTex texture.Texture) {
 	})
 
 	centerTable("about2", -1, func() {
-		imgui.TextUnformatted("danser-go " + build.VERSION)
+		imgui.TextUnformatted("TaktChase " + build.VERSION)
 	})
 
 	centerTable("about3", -1, func() {
@@ -146,7 +146,7 @@ func drawAbout(dTex texture.Texture) {
 
 		centerTable("aboutgithub", -1, func() {
 			if imgui.Button("GitHub") {
-				platform.OpenURL("https://wieku.me/danser")
+				platform.OpenURL("https://wieku.me/taktchase")
 			}
 		})
 

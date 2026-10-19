@@ -4,7 +4,7 @@ import (
 	"runtime/debug"
 )
 
-var ProgramName = "danser-go"
+var ProgramName = "TaktChase"
 
 var CommitHash = "Unknown"
 
@@ -12,7 +12,7 @@ var VERSION = "dev"
 
 var Stream = "Dev"
 
-var DanserExec = "danser-cli"
+var TaktChaseExec = "taktchase-cli"
 
 func init() {
 	if bI, ok := debug.ReadBuildInfo(); ok {

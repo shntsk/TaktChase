@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/AllenDang/cimgui-go/imgui"
 	"github.com/sqweek/dialog"
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/platform"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/platform"
 	"math"
 	"os"
 	"path/filepath"
@@ -50,16 +50,16 @@ func checkForUpdates(pingUpToDate bool) {
 	switch status {
 	case utils.Ignored, utils.UpToDate:
 		if pingUpToDate {
-			showMessage(mInfo, "You're using the newest version of danser.")
+			showMessage(mInfo, "You're using the newest version of taktchase.")
 		}
 	case utils.Failed:
 		showMessage(mError, "Can't get version from GitHub:", err)
 	case utils.Snapshot:
-		if showMessage(mQuestion, "You're using a snapshot version of danser.\nFor newer version of snapshots please visit the official danser discord server at: %s\n\nDo you want to go there?", url) {
+		if showMessage(mQuestion, "You're using a snapshot version of taktchase.\nFor newer version of snapshots please visit the official taktchase discord server at: %s\n\nDo you want to go there?", url) {
 			platform.OpenURL(url)
 		}
 	case utils.UpdateAvailable:
-		if showMessage(mQuestion, "You're using an older version of danser.\nYou can download a newer version here: %s\n\nDo you want to go there?", url) {
+		if showMessage(mQuestion, "You're using an older version of taktchase.\nYou can download a newer version here: %s\n\nDo you want to go there?", url) {
 			platform.OpenURL(url)
 		}
 	}

@@ -1,3 +1,3 @@
-module github.com/wieku/danser-go/tools/pack2
+module github.com/shntsk/taktchase/tools/pack2
 
 go 1.18

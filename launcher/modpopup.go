@@ -5,7 +5,7 @@ import (
 
 	"github.com/AllenDang/cimgui-go/imgui"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
 )
 
 type modPopup struct {

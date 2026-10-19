@@ -2,7 +2,7 @@ package osuapi
 
 import (
 	"context"
-	"github.com/wieku/danser-go/app/settings"
+	"github.com/shntsk/taktchase/app/settings"
 	"golang.org/x/oauth2"
 	"time"
 )

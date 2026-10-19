@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <danser-core.h> //auto-generated during dist
+#include <taktchase-core.h> //auto-generated during dist
 
 #ifdef _WIN32
 #include <windows.h>
@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
     slc.cap = argc;
 
 #ifdef LAUNCHER
-    danserMain(1, slc);
+    taktchaseMain(1, slc);
 #else
-    danserMain(0, slc);
+    taktchaseMain(0, slc);
 #endif
 
     return 0;

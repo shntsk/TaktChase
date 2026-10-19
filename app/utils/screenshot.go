@@ -2,8 +2,8 @@ package utils
 
 import (
 	"github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +28,7 @@ func MakeScreenshot(w, h int, name string, async bool) {
 		fileName := name
 
 		if fileName == "" {
-			fileName = "danser_" + time.Now().Format("2006-01-02_15-04-05")
+			fileName = "taktchase_" + time.Now().Format("2006-01-02_15-04-05")
 		}
 
 		fileName += ".png"

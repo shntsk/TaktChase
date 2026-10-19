@@ -1,8 +1,8 @@
 package osu
 
 import (
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"math"
 )
 

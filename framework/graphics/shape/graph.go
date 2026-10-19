@@ -5,17 +5,17 @@ import (
 
 	"github.com/go-gl/mathgl/mgl32"
 
-	"github.com/wieku/danser-go/framework/frame"
-	"github.com/wieku/danser-go/framework/graphics/attribute"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/blend"
-	"github.com/wieku/danser-go/framework/graphics/buffer"
-	"github.com/wieku/danser-go/framework/graphics/font"
-	"github.com/wieku/danser-go/framework/graphics/shader"
-	"github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/vector"
-	"github.com/wieku/danser-go/framework/profiler"
+	"github.com/shntsk/taktchase/framework/frame"
+	"github.com/shntsk/taktchase/framework/graphics/attribute"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/blend"
+	"github.com/shntsk/taktchase/framework/graphics/buffer"
+	"github.com/shntsk/taktchase/framework/graphics/font"
+	"github.com/shntsk/taktchase/framework/graphics/shader"
+	"github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/profiler"
 )
 
 const gVert = `

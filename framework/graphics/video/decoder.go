@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/util/pixconv"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/util/pixconv"
 )
 
 const BufferSize = 3
@@ -121,7 +121,7 @@ func (dec *VideoDecoder) StartFFmpeg(millis int64) {
 	err = dec.command.Start()
 	if err != nil {
 		if strings.Contains(err.Error(), "127") || strings.Contains(strings.ToLower(err.Error()), "0xc0000135") {
-			panic(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/Wieku/danser-go/wiki/FFmpeg. Error: %s", err))
+			panic(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/shntsk/TaktChase/wiki/FFmpeg. Error: %s", err))
 		}
 
 		panic(fmt.Sprintf("Failed to start ffmpeg decoder. Error: %s", err))

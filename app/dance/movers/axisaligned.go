@@ -1,12 +1,12 @@
 package movers
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	"github.com/wieku/danser-go/framework/math/curves"
-	"github.com/wieku/danser-go/framework/math/math32"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	"github.com/shntsk/taktchase/framework/math/curves"
+	"github.com/shntsk/taktchase/framework/math/math32"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type AxisMover struct {

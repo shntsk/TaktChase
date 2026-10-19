@@ -1,13 +1,13 @@
 package play
 
 import (
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/rulesets/osu"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/font"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/rulesets/osu"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/font"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
 	"strconv"
 )
 

@@ -1,10 +1,10 @@
 package audio
 
 import (
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/skin"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/skin"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"strconv"
 	"strings"
 	"unicode"

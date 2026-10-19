@@ -19,21 +19,21 @@ mkdir -p $BUILD_DIR
 
 go run tools/assets/assets.go ./ $BUILD_DIR/
 
-go build -trimpath -ldflags "-s -w -X 'github.com/wieku/danser-go/build.VERSION=$build' -X 'github.com/wieku/danser-go/build.Stream=Release'" -buildmode=c-shared -o $BUILD_DIR/danser-core.so -v -x -tags "exclude_cimgui_glfw exclude_cimgui_sdli"
+go build -trimpath -ldflags "-s -w -X 'github.com/shntsk/taktchase/build.VERSION=$build' -X 'github.com/shntsk/taktchase/build.Stream=Release'" -buildmode=c-shared -o $BUILD_DIR/taktchase-core.so -v -x -tags "exclude_cimgui_glfw exclude_cimgui_sdli"
 
-mv $BUILD_DIR/danser-core.so $BUILD_DIR/libdanser-core.so
+mv $BUILD_DIR/taktchase-core.so $BUILD_DIR/libtaktchase-core.so
 cp {libbass.so,libbass_fx.so,libbassmix.so,libyuv.so,libSDL3.so} $BUILD_DIR/
 
-gcc -no-pie --verbose -O3 -o $BUILD_DIR/danser-cli -I. cmain/main_danser.c -I$BUILD_DIR/ -Wl,-rpath,'$ORIGIN' -L$BUILD_DIR/ -ldanser-core
+gcc -no-pie --verbose -O3 -o $BUILD_DIR/taktchase-cli -I. cmain/main_taktchase.c -I$BUILD_DIR/ -Wl,-rpath,'$ORIGIN' -L$BUILD_DIR/ -ltaktchase-core
 
-gcc -no-pie --verbose -O3 -D LAUNCHER -o $BUILD_DIR/danser -I. cmain/main_danser.c -I$BUILD_DIR/ -Wl,-rpath,'$ORIGIN' -L$BUILD_DIR/ -ldanser-core
+gcc -no-pie --verbose -O3 -D LAUNCHER -o $BUILD_DIR/taktchase -I. cmain/main_taktchase.c -I$BUILD_DIR/ -Wl,-rpath,'$ORIGIN' -L$BUILD_DIR/ -ltaktchase-core
 
-rm $BUILD_DIR/danser-core.h
+rm $BUILD_DIR/taktchase-core.h
 
 go run tools/ffmpeg/ffmpeg.go $BUILD_DIR/
 
 mkdir -p $TARGET_DIR
 
-go run tools/pack2/pack.go $TARGET_DIR/danser-$exec-linux.zip $BUILD_DIR/
+go run tools/pack2/pack.go $TARGET_DIR/taktchase-$exec-linux.zip $BUILD_DIR/
 
 rm -rf $BUILD_DIR

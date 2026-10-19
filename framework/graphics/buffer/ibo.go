@@ -3,10 +3,10 @@ package buffer
 import (
 	"fmt"
 	"github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/hacks"
-	"github.com/wieku/danser-go/framework/graphics/history"
-	"github.com/wieku/danser-go/framework/profiler"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/hacks"
+	"github.com/shntsk/taktchase/framework/graphics/history"
+	"github.com/shntsk/taktchase/framework/profiler"
 	"runtime"
 )
 

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/skin"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/skin"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 const bufferSize = 10 * 1024 * 1024

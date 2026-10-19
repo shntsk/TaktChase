@@ -1,9 +1,9 @@
 package animation
 
 import (
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/vector"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type TransformationType int64

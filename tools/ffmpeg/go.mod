@@ -1,3 +1,3 @@
-module github.com/wieku/danser-go/tools/ffmpeg
+module github.com/shntsk/taktchase/tools/ffmpeg
 
 go 1.18

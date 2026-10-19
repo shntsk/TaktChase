@@ -8,11 +8,11 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/attribute"
-	"github.com/wieku/danser-go/framework/graphics/history"
-	"github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/attribute"
+	"github.com/shntsk/taktchase/framework/graphics/history"
+	"github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type RShader struct {

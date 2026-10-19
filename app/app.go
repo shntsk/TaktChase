@@ -19,33 +19,33 @@ import (
 
 	"github.com/wieku/rplpa"
 
-	"github.com/wieku/danser-go/app/audio"
-	"github.com/wieku/danser-go/app/beatmap"
-	difficulty2 "github.com/wieku/danser-go/app/beatmap/difficulty"
-	camera2 "github.com/wieku/danser-go/app/bmath/camera"
-	"github.com/wieku/danser-go/app/database"
-	"github.com/wieku/danser-go/app/discord"
-	"github.com/wieku/danser-go/app/ffmpeg"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/states"
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/build"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/frame"
-	"github.com/wieku/danser-go/framework/goroutines"
-	batch2 "github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/blend"
-	"github.com/wieku/danser-go/framework/graphics/buffer"
-	"github.com/wieku/danser-go/framework/graphics/font"
-	"github.com/wieku/danser-go/framework/graphics/viewport"
-	"github.com/wieku/danser-go/framework/math/vector"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
-	"github.com/wieku/danser-go/framework/profiler"
-	"github.com/wieku/danser-go/framework/qpc"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/audio"
+	"github.com/shntsk/taktchase/app/beatmap"
+	difficulty2 "github.com/shntsk/taktchase/app/beatmap/difficulty"
+	camera2 "github.com/shntsk/taktchase/app/bmath/camera"
+	"github.com/shntsk/taktchase/app/database"
+	"github.com/shntsk/taktchase/app/discord"
+	"github.com/shntsk/taktchase/app/ffmpeg"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/states"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/build"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/frame"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	batch2 "github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/blend"
+	"github.com/shntsk/taktchase/framework/graphics/buffer"
+	"github.com/shntsk/taktchase/framework/graphics/font"
+	"github.com/shntsk/taktchase/framework/graphics/viewport"
+	"github.com/shntsk/taktchase/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/framework/profiler"
+	"github.com/shntsk/taktchase/framework/qpc"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 const (
@@ -108,7 +108,7 @@ func run() {
 		cursors := flag.Int("cursors", 1, "How many repeated cursors should be visible, recommended 2 for mirror, 8 for mandala")
 		tag := flag.Int("tag", 1, "How many cursors should be \"playing\" specific map. 2 means that 1st cursor clicks the 1st object, 2nd clicks 2nd object, 1st clicks 3rd and so on")
 
-		knockout := flag.Bool("knockout", false, "Use (classic) knockout feature. Replays are sourced from \"replays/{a}\" where {a} is an md5 hash of .osu file. Danser automatically organizes replay files put directly in \"replays\", using maps' md5s provided by the replay files.")
+		knockout := flag.Bool("knockout", false, "Use (classic) knockout feature. Replays are sourced from \"replays/{a}\" where {a} is an md5 hash of .osu file. TaktChase automatically organizes replay files put directly in \"replays\", using maps' md5s provided by the replay files.")
 		knockout2 := flag.String("knockout2", "", "Use (new) knockout feature, JSON list of paths to compatible replay files has to be provided. \"Knockout.ExcludeMods\" and \"Knockout.MaxPlayers\" options are ignored, they have to be filtered beforehand.")
 
 		speed := flag.Float64("speed", 1.0, "Specify music's speed, set to 1.5 to have DoubleTime mod experience")
@@ -127,7 +127,7 @@ func run() {
 
 		record := flag.Bool("record", false, "Records a video")
 		out := flag.String("out", "", "If -ss flag is used, sets the name of screenshot, extension is PNG. If not, it overrides -record flag, specifies the name of recorded video file, extension is managed by settings")
-		ss := flag.Float64("ss", math.NaN(), "Screenshot mode. Snap single frame from danser at given time in seconds. Specify the name of file by -out, resolution is managed by Recording settings")
+		ss := flag.Float64("ss", math.NaN(), "Screenshot mode. Snap single frame from taktchase at given time in seconds. Specify the name of file by -out, resolution is managed by Recording settings")
 
 		mods := flag.String("mods", "", "Specify beatmap/play mods")
 		mods2 := flag.String("mods2", "", "Specify beatmap/play mods, lazer style")
@@ -138,7 +138,7 @@ func run() {
 		skin := flag.String("skin", "", "Replace Skin.CurrentSkin setting temporarily")
 
 		noDbCheck := flag.Bool("nodbcheck", false, "Don't validate the database and only import new beatmap sets if there are any. Useful for slow drives.")
-		noUpdCheck := flag.Bool("noupdatecheck", strings.HasPrefix(env.LibDir(), "/usr/lib/"), "Don't check for updates. Speeds up startup if older version of danser is needed for various reasons. Has no effect if danser is running as a linux package")
+		noUpdCheck := flag.Bool("noupdatecheck", strings.HasPrefix(env.LibDir(), "/usr/lib/"), "Don't check for updates. Speeds up startup if older version of taktchase is needed for various reasons. Has no effect if taktchase is running as a linux package")
 
 		ar := flag.Float64("ar", math.NaN(), "Modify map's AR, only in cursordance/play modes")
 		od := flag.Float64("od", math.NaN(), "Modify map's OD, only in cursordance/play modes")
@@ -400,7 +400,7 @@ func run() {
 
 		allowDA := false
 
-		// if map was launched not in knockout or play mode but AT mod is present, use replay mode for danser, allowing custom ar,od,cs,hp
+		// if map was launched not in knockout or play mode but AT mod is present, use replay mode for taktchase, allowing custom ar,od,cs,hp
 		if !settings.KNOCKOUT && modsParsed.Active(difficulty2.Autoplay) {
 			settings.PLAY = false
 			settings.KNOCKOUT = true
@@ -439,7 +439,7 @@ func run() {
 
 		log.Println("Creating window...")
 
-		iconName := "dansercoin*"
+		iconName := "taktchasecoin*"
 		if cTime := time.Now(); cTime.Month() == 12 && cTime.Day() >= 6 {
 			iconName += "-s"
 		}
@@ -447,7 +447,7 @@ func run() {
 		gcontext.SDLCreateWindow(
 			int(settings.Graphics.GetWidth()),
 			int(settings.Graphics.GetHeight()),
-			"danser "+build.VERSION+" - "+beatMap.Artist+" - "+beatMap.Name+" ["+beatMap.Difficulty+"]",
+			"taktchase "+build.VERSION+" - "+beatMap.Artist+" - "+beatMap.Name+" ["+beatMap.Difficulty+"]",
 			gcontext.OptionalProps{
 				IconName:       iconName,
 				BuiltinMSAA:    false,
@@ -861,12 +861,12 @@ func checkForUpdates() {
 	case utils.Failed:
 		log.Println("Can't get version from GitHub:", err)
 	case utils.UpToDate:
-		log.Println("You're using the newest version of danser.")
+		log.Println("You're using the newest version of taktchase.")
 	case utils.Snapshot:
-		log.Println("You're using a snapshot version of danser.")
-		log.Println("For newer version of snapshots please visit the official danser discord server at:", url)
+		log.Println("You're using a snapshot version of taktchase.")
+		log.Println("For newer version of snapshots please visit the official taktchase discord server at:", url)
 	case utils.UpdateAvailable:
-		log.Println("You're using an older version of danser.")
+		log.Println("You're using an older version of taktchase.")
 		log.Println("You can download a newer version here:", url)
 		time.Sleep(2 * time.Second)
 	}
@@ -888,7 +888,7 @@ func Run() {
 
 	goroutines.SetCrashHandler(closeHandler)
 
-	platform.StartLogging("danser")
+	platform.StartLogging("taktchase")
 
 	platform.DisableQuickEdit()
 

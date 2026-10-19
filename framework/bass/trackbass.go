@@ -13,7 +13,7 @@ import (
 	"unicode/utf16"
 	"unsafe"
 
-	"github.com/wieku/danser-go/app/settings"
+	"github.com/shntsk/taktchase/app/settings"
 )
 
 type TrackBass struct {

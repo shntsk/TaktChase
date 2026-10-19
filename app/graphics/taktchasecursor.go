@@ -1,22 +1,22 @@
 package graphics
 
 import (
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/graphics/attribute"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/buffer"
-	"github.com/wieku/danser-go/framework/graphics/shader"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/graphics/attribute"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/buffer"
+	"github.com/shntsk/taktchase/framework/graphics/shader"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
 	"math"
 	"sync"
 )
 
-var danserShader *shader.RShader = nil
+var taktchaseShader *shader.RShader = nil
 
-func initDanserShader() {
-	if danserShader != nil {
+func initTaktChaseShader() {
+	if taktchaseShader != nil {
 		return
 	}
 
@@ -30,10 +30,10 @@ func initDanserShader() {
 		panic(err)
 	}
 
-	danserShader = shader.NewRShader(shader.NewSource(vert, shader.Vertex), shader.NewSource(frag, shader.Fragment))
+	taktchaseShader = shader.NewRShader(shader.NewSource(vert, shader.Vertex), shader.NewSource(frag, shader.Fragment))
 }
 
-type danserRenderer struct {
+type taktchaseRenderer struct {
 	Position vector.Vector2f
 	LastPos  vector.Vector2f
 	VaoPos   vector.Vector2f
@@ -56,8 +56,8 @@ type danserRenderer struct {
 	firstTime bool
 }
 
-func newDanserRenderer() *danserRenderer {
-	initDanserShader()
+func newTaktChaseRenderer() *taktchaseRenderer {
+	initTaktChaseShader()
 
 	points := int(math.Ceil(float64(settings.Cursor.TrailMaxLength) * settings.Cursor.TrailDensity))
 
@@ -92,15 +92,15 @@ func newDanserRenderer() *danserRenderer {
 		},
 	)
 
-	vao.Attach(danserShader)
+	vao.Attach(taktchaseShader)
 
-	cursor := &danserRenderer{LastPos: vector.NewVec2f(100, 100), Position: vector.NewVec2f(100, 100), vao: vao, mutex: &sync.Mutex{}, RendPos: vector.NewVec2f(100, 100), vertices: make([]float32, points*3), firstTime: true}
+	cursor := &taktchaseRenderer{LastPos: vector.NewVec2f(100, 100), Position: vector.NewVec2f(100, 100), vao: vao, mutex: &sync.Mutex{}, RendPos: vector.NewVec2f(100, 100), vertices: make([]float32, points*3), firstTime: true}
 	cursor.vecSize = 3
 
 	return cursor
 }
 
-func (cursor *danserRenderer) SetPosition(position vector.Vector2f) {
+func (cursor *taktchaseRenderer) SetPosition(position vector.Vector2f) {
 	cursor.Position = position
 
 	if cursor.firstTime {
@@ -111,7 +111,7 @@ func (cursor *danserRenderer) SetPosition(position vector.Vector2f) {
 	}
 }
 
-func (cursor *danserRenderer) Update(delta float64) {
+func (cursor *taktchaseRenderer) Update(delta float64) {
 	if settings.Cursor.TrailStyle == 3 {
 		cursor.hueBase += settings.Cursor.Style23Speed / 360.0 * delta
 		if cursor.hueBase > 1.0 {
@@ -197,7 +197,7 @@ func (cursor *danserRenderer) Update(delta float64) {
 	cursor.mutex.Unlock()
 }
 
-func (cursor *danserRenderer) UpdateRenderer() {
+func (cursor *taktchaseRenderer) UpdateRenderer() {
 	cursor.mutex.Lock()
 	if cursor.vaoDirty {
 		cursor.vao.Resize("points", cursor.maxCap)
@@ -209,7 +209,7 @@ func (cursor *danserRenderer) UpdateRenderer() {
 	cursor.mutex.Unlock()
 }
 
-func (cursor *danserRenderer) DrawM(scale, expand float64, batch *batch.QuadBatch, color color2.Color, colorGlow color2.Color) {
+func (cursor *taktchaseRenderer) DrawM(scale, expand float64, batch *batch.QuadBatch, color color2.Color, colorGlow color2.Color) {
 	if settings.Cursor.CursorExpand {
 		scale *= expand
 	}
@@ -237,19 +237,19 @@ func (cursor *danserRenderer) DrawM(scale, expand float64, batch *batch.QuadBatc
 		colorD2 = color2.NewLA(1.0, colorGlow.A)
 	}
 
-	danserShader.Bind()
+	taktchaseShader.Bind()
 
 	CursorTrail.Bind(1)
-	danserShader.SetUniform("tex", int32(1))
+	taktchaseShader.SetUniform("tex", int32(1))
 
-	danserShader.SetUniform("proj", batch.Projection)
-	danserShader.SetUniform("points", float32(cursor.instances))
-	danserShader.SetUniform("instances", float32(cursor.instances))
+	taktchaseShader.SetUniform("proj", batch.Projection)
+	taktchaseShader.SetUniform("points", float32(cursor.instances))
+	taktchaseShader.SetUniform("instances", float32(cursor.instances))
 
 	if settings.Cursor.TrailStyle == 1 {
-		danserShader.SetUniform("saturation", float32(0.0))
+		taktchaseShader.SetUniform("saturation", float32(0.0))
 	} else {
-		danserShader.SetUniform("saturation", float32(1.0))
+		taktchaseShader.SetUniform("saturation", float32(1.0))
 	}
 
 	cursor.vao.Bind()
@@ -262,29 +262,29 @@ func (cursor *danserRenderer) DrawM(scale, expand float64, batch *batch.QuadBatc
 		cursorScl = float32(siz * (12.0 / 18) * scale)
 		innerLengthMult = float32(settings.Cursor.InnerLengthMult)
 
-		danserShader.SetUniform("col_tint", colorD2)
-		danserShader.SetUniform("scale", float32(siz*(16.0/18)*scale*settings.Cursor.TrailScale))
-		danserShader.SetUniform("endScale", float32(settings.Cursor.GlowEndScale))
+		taktchaseShader.SetUniform("col_tint", colorD2)
+		taktchaseShader.SetUniform("scale", float32(siz*(16.0/18)*scale*settings.Cursor.TrailScale))
+		taktchaseShader.SetUniform("endScale", float32(settings.Cursor.GlowEndScale))
 		if settings.Cursor.TrailStyle > 1 {
-			danserShader.SetUniform("hueshift", glowShift/360)
+			taktchaseShader.SetUniform("hueshift", glowShift/360)
 		}
 
 		cursor.vao.DrawInstanced(0, cursor.instances)
 	}
 
-	danserShader.SetUniform("col_tint", colorD)
-	danserShader.SetUniform("scale", cursorScl*float32(settings.Cursor.TrailScale))
-	danserShader.SetUniform("points", float32(len(cursor.Points))*innerLengthMult)
-	danserShader.SetUniform("endScale", float32(settings.Cursor.TrailEndScale))
+	taktchaseShader.SetUniform("col_tint", colorD)
+	taktchaseShader.SetUniform("scale", cursorScl*float32(settings.Cursor.TrailScale))
+	taktchaseShader.SetUniform("points", float32(len(cursor.Points))*innerLengthMult)
+	taktchaseShader.SetUniform("endScale", float32(settings.Cursor.TrailEndScale))
 	if settings.Cursor.TrailStyle > 1 {
-		danserShader.SetUniform("hueshift", hueShift/360)
+		taktchaseShader.SetUniform("hueshift", hueShift/360)
 	}
 
 	cursor.vao.DrawInstanced(0, cursor.instances)
 
 	cursor.vao.Unbind()
 
-	danserShader.Unbind()
+	taktchaseShader.Unbind()
 
 	batch.Begin()
 

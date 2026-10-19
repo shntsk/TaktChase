@@ -2,7 +2,7 @@ package pixconv
 
 /*
 #cgo CFLAGS: -I/usr/include -I.
-#cgo LDFLAGS: -Wl,-rpath,$ORIGIN -L${SRCDIR} -L${SRCDIR}/../../../ -L/usr/lib/danser -L/usr/lib -lyuv
+#cgo LDFLAGS: -Wl,-rpath,$ORIGIN -L${SRCDIR} -L${SRCDIR}/../../../ -L/usr/lib/taktchase -L/usr/lib -lyuv
 #include "libyuv.h"
 */
 import "C"

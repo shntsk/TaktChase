@@ -3,7 +3,7 @@ package difficulty
 import (
 	"reflect"
 
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 var modConfigs map[Modifier]reflect.Type

@@ -1,8 +1,8 @@
 package graphics
 
 import (
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/framework/graphics/texture"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
 	"strconv"
 )
 

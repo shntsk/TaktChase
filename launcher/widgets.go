@@ -9,8 +9,8 @@ import (
 	"github.com/AllenDang/cimgui-go/imgui"
 	"golang.org/x/exp/constraints"
 
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 type popupType int

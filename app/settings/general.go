@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"github.com/wieku/danser-go/framework/env"
+	"github.com/shntsk/taktchase/framework/env"
 	"path/filepath"
 )
 
@@ -28,12 +28,12 @@ type general struct {
 	OsuSkinsDir string `long:"true" label:"osu! Skins directory" path:"Select osu! Skins directory"`
 
 	// Directory that contains osu! replays
-	OsuReplaysDir string `long:"true" label:"osu! Replays directory" path:"Select osu! Replays directory" tooltip:"Don't use replays directory inside danser's directory!"`
+	OsuReplaysDir string `long:"true" label:"osu! Replays directory" path:"Select osu! Replays directory" tooltip:"Don't use replays directory inside taktchase's directory!"`
 
-	// Whether discord should show that danser is on
+	// Whether discord should show that taktchase is on
 	DiscordPresenceOn bool `label:"Discord Rich Presence"`
 
-	// Whether danser should unpack .osz files in Songs folder, osu! may complain about it
+	// Whether taktchase should unpack .osz files in Songs folder, osu! may complain about it
 	UnpackOszFiles bool
 
 	// Whether import details should be shown. If false, only failures will be logged.

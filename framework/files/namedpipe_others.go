@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 type NamedPipe struct {

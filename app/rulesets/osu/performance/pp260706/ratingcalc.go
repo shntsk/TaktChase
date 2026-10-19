@@ -3,7 +3,7 @@ package pp260706
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
 )
 
 const difficultyMultiplier = 0.0675

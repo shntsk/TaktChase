@@ -3,14 +3,14 @@ package buffer
 import (
 	"runtime"
 
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/history"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/profiler"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/history"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/profiler"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 
-	"github.com/wieku/danser-go/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
 )
 
 // Framebuffer is a fixed resolution texture that you can draw on.

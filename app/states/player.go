@@ -14,38 +14,38 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/go-gl/mathgl/mgl32"
 
-	"github.com/wieku/danser-go/app/audio"
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/bmath"
-	camera2 "github.com/wieku/danser-go/app/bmath/camera"
-	"github.com/wieku/danser-go/app/dance"
-	"github.com/wieku/danser-go/app/discord"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/osuapi"
-	"github.com/wieku/danser-go/app/rulesets/osu"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/states/components/common"
-	"github.com/wieku/danser-go/app/states/components/containers"
-	"github.com/wieku/danser-go/app/states/components/overlays"
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/frame"
-	"github.com/wieku/danser-go/framework/goroutines"
-	batch2 "github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/effects"
-	"github.com/wieku/danser-go/framework/graphics/font"
-	"github.com/wieku/danser-go/framework/graphics/shape"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/scaling"
-	"github.com/wieku/danser-go/framework/math/vector"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
-	"github.com/wieku/danser-go/framework/profiler"
-	"github.com/wieku/danser-go/framework/qpc"
+	"github.com/shntsk/taktchase/app/audio"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/bmath"
+	camera2 "github.com/shntsk/taktchase/app/bmath/camera"
+	"github.com/shntsk/taktchase/app/dance"
+	"github.com/shntsk/taktchase/app/discord"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/osuapi"
+	"github.com/shntsk/taktchase/app/rulesets/osu"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/states/components/common"
+	"github.com/shntsk/taktchase/app/states/components/containers"
+	"github.com/shntsk/taktchase/app/states/components/overlays"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/frame"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	batch2 "github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/effects"
+	"github.com/shntsk/taktchase/framework/graphics/font"
+	"github.com/shntsk/taktchase/framework/graphics/shape"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/scaling"
+	"github.com/shntsk/taktchase/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/framework/profiler"
+	"github.com/shntsk/taktchase/framework/qpc"
 )
 
 const windowsOffset = 15
@@ -94,7 +94,7 @@ type Player struct {
 	overlay         overlays.Overlay
 	blur            *effects.BlurEffect
 
-	coin *common.DanserCoin
+	coin *common.TaktChaseCoin
 
 	hudGlider *animation.Glider
 
@@ -452,7 +452,7 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 	player.MapEnd += 100
 
-	// See https://github.com/Wieku/danser-go/issues/121
+	// See https://github.com/shntsk/TaktChase/issues/121
 	player.musicPlayer.AddSilence(max(0, player.MapEnd/1000-player.musicPlayer.GetLength()))
 
 	if settings.Playfield.SeizureWarning.Enabled {
@@ -496,7 +496,7 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 	player.background.SetTrack(player.musicPlayer)
 
-	player.coin = common.NewDanserCoin()
+	player.coin = common.NewTaktChaseCoin()
 	player.coin.SetMap(beatMap, player.musicPlayer)
 
 	player.coin.SetScale(0.25 * min(settings.Graphics.GetWidthF(), settings.Graphics.GetHeightF()))

@@ -2,7 +2,7 @@ package goroutines
 
 import (
 	"errors"
-	"github.com/wieku/danser-go/framework/profiler"
+	"github.com/shntsk/taktchase/framework/profiler"
 	"runtime"
 )
 

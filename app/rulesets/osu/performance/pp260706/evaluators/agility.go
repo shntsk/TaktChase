@@ -3,7 +3,7 @@ package evaluators
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
 )
 
 const (

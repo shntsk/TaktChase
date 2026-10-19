@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/wieku/danser-go/framework/files"
+	"github.com/shntsk/taktchase/framework/files"
 )
 
-const errMsg = "ffmpeg not found! Please make sure it's installed in danser directory or in PATH. Follow download instructions at https://github.com/Wieku/danser-go/wiki/FFmpeg"
+const errMsg = "ffmpeg not found! Please make sure it's installed in taktchase directory or in PATH. Follow download instructions at https://github.com/shntsk/TaktChase/wiki/FFmpeg"
 
 var ffmpegInit bool
 var ffPath string

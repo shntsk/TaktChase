@@ -13,19 +13,19 @@ import (
 
 	"github.com/wieku/rplpa"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/dance/input"
-	"github.com/wieku/danser-go/app/dance/movers"
-	"github.com/wieku/danser-go/app/dance/schedulers"
-	"github.com/wieku/danser-go/app/dance/spinners"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/rulesets/osu"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/dance/input"
+	"github.com/shntsk/taktchase/app/dance/movers"
+	"github.com/shntsk/taktchase/app/dance/schedulers"
+	"github.com/shntsk/taktchase/app/dance/spinners"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/rulesets/osu"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 const replaysMaster = "replays"
@@ -166,14 +166,14 @@ func (controller *ReplayController) SetBeatMap(beatMap *beatmap.BeatMap) {
 		log.Println("\tReplay loaded!")
 	}
 
-	if !localReplay && (settings.Knockout.AddDanser || len(controller.controllers) == 0) {
+	if !localReplay && (settings.Knockout.AddTaktChase || len(controller.controllers) == 0) {
 		control := NewSubControl()
 		control.diff = beatMap.Diff.Clone()
 
 		control.danceController = NewGenericController()
 		control.danceController.SetBeatMap(beatMap)
 
-		controller.replays = append([]RpData{{settings.Knockout.DanserName, settings.Knockout.DanserName, control.diff.GetModString(), control.diff.Mods, 1, 0, 0, osu.NONE, -1, time.Now()}}, controller.replays...)
+		controller.replays = append([]RpData{{settings.Knockout.TaktChaseName, settings.Knockout.TaktChaseName, control.diff.GetModString(), control.diff.Mods, 1, 0, 0, osu.NONE, -1, time.Now()}}, controller.replays...)
 		controller.controllers = append([]*subControl{control}, controller.controllers...)
 
 		if len(candidates) == 0 {

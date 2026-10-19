@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 var Recording = initRecording()
@@ -149,7 +149,7 @@ type recording struct {
 	FrameWidth          int                `min:"1" max:"30720"`
 	FrameHeight         int                `min:"1" max:"17280"`
 	FPS                 int                `label:"FPS (PLEASE READ TOOLTIP)" string:"true" min:"1" max:"10727" tooltip:"IMPORTANT: If you plan to have a \"high fps\" video, use Motion Blur below instead of setting FPS to absurd numbers. Setting the value too high will result in a broken video!"`
-	EncodingFPSCap      int                `string:"true" min:"0" max:"10727" label:"Max Encoding FPS (Speed)" tooltip:"Limits the speed at which danser renders the video. If FPS is set to 60 and this option to 30, then it means 2 minute map will take at least 4 minutes to render"`
+	EncodingFPSCap      int                `string:"true" min:"0" max:"10727" label:"Max Encoding FPS (Speed)" tooltip:"Limits the speed at which taktchase renders the video. If FPS is set to 60 and this option to 30, then it means 2 minute map will take at least 4 minutes to render"`
 	Encoder             string             `combo:"libx264|Software x264 (AVC),libx265|Software x265 (HEVC),libsvtav1|Software AV1,h264_nvenc|NVIDIA NVENC H.264 (AVC),hevc_nvenc|NVIDIA NVENC H.265 (HEVC),av1_nvenc|NVIDIA NVENC AV1,h264_qsv|Intel QuickSync H.264 (AVC),hevc_qsv|Intel QuickSync H.265 (HEVC),h264_amf|AMD AMF H.264 (AVC),hevc_amf|AMD AMF H.265 (HEVC),av1_amf|AMD AMF AV1" comboSrc:"EncoderOptions"`
 	X264Settings        *x264Settings      `json:"libx264" label:"Software x264 (AVC) Settings" showif:"Encoder=libx264"`
 	X265Settings        *x265Settings      `json:"libx265" label:"Software x265 (HEVC) Settings" showif:"Encoder=libx265"`

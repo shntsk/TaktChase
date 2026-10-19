@@ -3,7 +3,7 @@ package spinners
 import (
 	"strings"
 
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 const rpms = 0.00795

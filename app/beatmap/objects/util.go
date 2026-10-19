@@ -1,7 +1,7 @@
 package objects
 
 import (
-	"github.com/wieku/danser-go/app/settings"
+	"github.com/shntsk/taktchase/app/settings"
 	"strconv"
 )
 
