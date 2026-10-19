@@ -1,12 +1,12 @@
-<p align="center">
-  <h1 align="center">TaktChase</h1>
-  <p align="center">A rhythm-game project focused on timing, precision, and control.</p>
-  <p align="center">
+<div align="center">
+  <h1>TaktChase</h1>
+  <p>A rhythm-game project focused on timing, precision, and control.</p>
+  <p>
     <a href="https://github.com/shntsk/TaktChase">Source code</a>
     ·
     <a href="https://github.com/shntsk/TaktChase/issues">Issues</a>
   </p>
-</p>
+</div>
 
 > **Status: early development.** TaktChase is being shaped from an existing desktop rhythm-game codebase. The project identity and gameplay-focused direction are being established; it is not yet a finished standalone release.
 
@@ -41,9 +41,9 @@ These are development goals, not a claim that every item is already implemented.
 
 ## Building from source
 
-The project is being refactored, so the current build setup still reflects the inherited desktop codebase. There are no official TaktChase installers or Android packages to download yet.
+The project is being refactored, so the current build setup still reflects the inherited desktop codebase. There are no TaktChase-branded installers or Android packages in this refactor yet.
 
-The current Go module specifies **Go 1.27.2** and uses a native C/C++ toolchain and OpenGL. Linux builds also require X11 development libraries and GTK 3 development files. Build scripts and release artifacts will be documented here again once they are aligned with the TaktChase identity.
+The current Go module targets Go 1.27 and pins the Go 1.27.2 toolchain. It uses a native C/C++ toolchain and OpenGL. Linux builds also require X11 development libraries and GTK 3 development files. Build scripts and release artifacts will be documented here again once they are aligned with the TaktChase identity.
 
 ## Credits and licensing
 
