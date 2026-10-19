@@ -155,6 +155,7 @@ type launcher struct {
 	popupStack       []iPopup
 
 	selectWindow *songSelectPopup
+	browser      *mapBrowser
 	splashText   string
 
 	prevMap *beatmap.BeatMap
@@ -304,8 +305,8 @@ func (l *launcher) startContext() {
 	l.currentConfig = c
 
 	settings.Graphics.Fullscreen = false
-	settings.Graphics.WindowWidth = 800
-	settings.Graphics.WindowHeight = 534
+	settings.Graphics.WindowWidth = 1280
+	settings.Graphics.WindowHeight = 720
 
 	iconName := "taktchasecoin*"
 
@@ -313,10 +314,11 @@ func (l *launcher) startContext() {
 		iconName += "-s"
 	}
 
-	gcontext.SDLCreateWindow(800, 534, "TaktChase "+build.VERSION+" launcher", gcontext.OptionalProps{
+	gcontext.SDLCreateWindow(1280, 720, "TaktChase "+build.VERSION+" launcher", gcontext.OptionalProps{
 		IconName:       iconName,
 		ScaleToMonitor: true,
 		BuiltinMSAA:    true,
+		Resizable:      true,
 	})
 
 	log.Println("SDL initialized!")
@@ -543,11 +545,12 @@ func (l *launcher) Draw() {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.Enable(gl.SCISSOR_TEST)
 
-	w, h = int(settings.Graphics.WindowWidth), int(settings.Graphics.WindowHeight)
-
+	// The window is resizable now: the logical size is whatever the window currently has.
 	settings.Graphics.Fullscreen = false
 	settings.Graphics.WindowWidth = int64(w)
 	settings.Graphics.WindowHeight = int64(h)
+
+	browserMode := l.browserActive()
 
 	if l.currentConfig != nil {
 		settings.Audio.GeneralVolume = l.currentConfig.Audio.GeneralVolume
@@ -571,6 +574,10 @@ func (l *launcher) Draw() {
 	bgA := 1.0
 	if l.bg.HasBackground() {
 		bgA = 0.33
+
+		if browserMode {
+			bgA = 0.22
+		}
 	}
 
 	l.bg.Draw(t, l.batch, 0, bgA, l.batch.Projection)
@@ -587,7 +594,7 @@ func (l *launcher) Draw() {
 	}
 
 	if l.mapsLoaded {
-		if l.winter {
+		if l.winter && !browserMode { // these sprites are glued to the classic layout
 			bSnow := *graphics.Snow[0]
 
 			if l.showProgressBar {
@@ -629,7 +636,7 @@ func (l *launcher) Draw() {
 			}
 		}
 
-		l.coin.SetPosition(vector.NewVec2d(468+155.5, 180+85))
+		l.coin.SetPosition(vector.NewVec2d(float64(w)*(468+155.5)/800, float64(h)*(180+85)/534))
 
 		if l.christmas {
 			l.coin.SetScale(float64(h) / 5)
@@ -640,7 +647,10 @@ func (l *launcher) Draw() {
 		l.coin.SetRotation(0.1)
 
 		l.coin.Update(t)
-		l.coin.Draw(t, l.batch)
+
+		if !browserMode { // the map browser has its own layout, the coin would sit behind the panels
+			l.coin.Draw(t, l.batch)
+		}
 	}
 
 	l.batch.End()
@@ -692,55 +702,43 @@ func (l *launcher) drawImgui() {
 	DrawImgui()
 }
 
-func (l *launcher) drawMain() {
-	w := contentRegionMax().X
+func (l *launcher) browserActive() bool {
+	return l.mapsLoaded && launcherConfig.CurrentMode != Replay && launcherConfig.CurrentMode != Knockout
+}
 
-	imgui.PushFont(Font, 24)
-
-	if imgui.BeginTableV("ltpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(float32(w)/2, 0), -1) {
-		imgui.TableSetupColumnV("ltpanel1", imgui.TableColumnFlagsWidthFixed, 0, imgui.ID(0))
-		imgui.TableSetupColumnV("ltpanel2", imgui.TableColumnFlagsWidthStretch, 0, imgui.ID(1))
-
-		imgui.TableNextColumn()
-
-		imgui.AlignTextToFramePadding()
-		imgui.TextUnformatted("Mode:")
-
-		imgui.TableNextColumn()
-
-		imgui.SetNextItemWidth(-1)
-
-		if imgui.BeginCombo("##mode", launcherConfig.CurrentMode.String()) {
-			for _, m := range modes {
-				if imgui.SelectableBoolV(m.String(), launcherConfig.CurrentMode == m, 0, vzero()) {
-					if m == Play {
-						launcherConfig.CurrentPMode = Watch
-					}
-
-					if m != Replay {
-						l.bld.replayPath = ""
-						l.bld.removeReplay()
-					}
-
-					if m != Knockout {
-						l.bld.knockoutReplays = nil
-					}
-
-					launcherConfig.CurrentMode = m
+func (l *launcher) drawModeCombo() {
+	if imgui.BeginCombo("##mode", launcherConfig.CurrentMode.String()) {
+		for _, m := range modes {
+			if imgui.SelectableBoolV(m.String(), launcherConfig.CurrentMode == m, 0, vzero()) {
+				if m == Play {
+					launcherConfig.CurrentPMode = Watch
 				}
-			}
 
-			imgui.EndCombo()
+				if m != Replay {
+					l.bld.replayPath = ""
+					l.bld.removeReplay()
+				}
+
+				if m != Knockout {
+					l.bld.knockoutReplays = nil
+				}
+
+				launcherConfig.CurrentMode = m
+			}
 		}
 
-		imgui.EndTable()
+		imgui.EndCombo()
 	}
+}
 
-	l.drawConfigPanel()
+func (l *launcher) drawMain() {
+	imgui.PushFont(Font, 24)
 
-	l.drawControls()
-
-	l.drawLowerPanel()
+	if l.browserActive() {
+		l.drawBrowserScreen()
+	} else {
+		l.drawClassicMain()
+	}
 
 	if l.selectWindow != nil {
 		l.selectWindow.update()
@@ -782,6 +780,35 @@ func (l *launcher) drawMain() {
 			l.reloadMaps(nil)
 		}
 	}
+}
+
+func (l *launcher) drawClassicMain() {
+	w := contentRegionMax().X
+
+	if imgui.BeginTableV("ltpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(float32(w)/2, 0), -1) {
+		imgui.TableSetupColumnV("ltpanel1", imgui.TableColumnFlagsWidthFixed, 0, imgui.ID(0))
+		imgui.TableSetupColumnV("ltpanel2", imgui.TableColumnFlagsWidthStretch, 0, imgui.ID(1))
+
+		imgui.TableNextColumn()
+
+		imgui.AlignTextToFramePadding()
+		imgui.TextUnformatted("Mode:")
+
+		imgui.TableNextColumn()
+
+		imgui.SetNextItemWidth(-1)
+
+		l.drawModeCombo()
+
+		imgui.EndTable()
+	}
+
+
+	l.drawConfigPanelAt(vec2(contentRegionMax().X-float32(w)/2.5, 20), float32(w)/2.5)
+
+	l.drawControls()
+
+	l.drawLowerPanel()
 }
 
 func (l *launcher) drawSplash() {
@@ -831,9 +858,7 @@ func (l *launcher) drawControls() {
 		imgui.TableNextColumn()
 
 		if imgui.ButtonV("Speed/Pitch", vec2(-1, imgui.TextLineHeight()*2)) {
-			l.openPopup(newPopupF("Speed adjust", popMedium, func() {
-				drawSpeedMenu(l.bld)
-			}))
+			l.openSpeedPopup()
 		}
 
 		imgui.TableNextColumn()
@@ -845,7 +870,7 @@ func (l *launcher) drawControls() {
 		}
 
 		if imgui.ButtonV("Mods", vec2(-1, imgui.TextLineHeight()*2)) {
-			l.openPopup(newModPopup(l.bld))
+			l.openModsPopup()
 		}
 
 		if nilMap && imgui.IsItemHoveredV(imgui.HoveredFlagsAllowWhenDisabled) {
@@ -855,18 +880,7 @@ func (l *launcher) drawControls() {
 		imgui.TableNextColumn()
 
 		if imgui.ButtonV("Time/Offset", vec2(-1, imgui.TextLineHeight()*2)) {
-			if l.timeMenu == nil {
-				l.timeMenu = newTimePopup(l.bld)
-
-				l.timeMenu.setCloseListener(func() {
-					if l.bld.currentMap != nil && l.bld.currentMap.LocalOffset != int(l.bld.offset.value) {
-						l.bld.currentMap.LocalOffset = int(l.bld.offset.value)
-						database.UpdateLocalOffset(l.bld.currentMap)
-					}
-				})
-			}
-
-			l.openPopup(l.timeMenu)
+			l.openTimePopup()
 		}
 
 		if nilMap {
@@ -880,15 +894,44 @@ func (l *launcher) drawControls() {
 
 		if launcherConfig.CurrentMode == CursorDance {
 			if imgui.ButtonV("Mirrors/Tags", vec2(-1, imgui.TextLineHeight()*2)) {
-				l.openPopup(newPopupF("Difficulty adjust", popDynamic, func() {
-					drawCDMenu(l.bld)
-				}))
+				l.openMirrorsPopup()
 			}
 		}
 
 		imgui.EndTable()
 	}
 
+}
+
+func (l *launcher) openSpeedPopup() {
+	l.openPopup(newPopupF("Speed adjust", popMedium, func() {
+		drawSpeedMenu(l.bld)
+	}))
+}
+
+func (l *launcher) openModsPopup() {
+	l.openPopup(newModPopup(l.bld))
+}
+
+func (l *launcher) openTimePopup() {
+	if l.timeMenu == nil {
+		l.timeMenu = newTimePopup(l.bld)
+
+		l.timeMenu.setCloseListener(func() {
+			if l.bld.currentMap != nil && l.bld.currentMap.LocalOffset != int(l.bld.offset.value) {
+				l.bld.currentMap.LocalOffset = int(l.bld.offset.value)
+				database.UpdateLocalOffset(l.bld.currentMap)
+			}
+		})
+	}
+
+	l.openPopup(l.timeMenu)
+}
+
+func (l *launcher) openMirrorsPopup() {
+	l.openPopup(newPopupF("Difficulty adjust", popDynamic, func() {
+		drawCDMenu(l.bld)
+	}))
 }
 
 func (l *launcher) selectReplay() {
@@ -1162,6 +1205,151 @@ func (l *launcher) showSelect() {
 	imgui.PopFont()
 }
 
+// drawPModeBody draws the Watch/Record/Screenshot selector with its "Configure" button and the record
+// progress. Everything is laid out from the current cursor position, so it works in any layout.
+func (l *launcher) drawPModeBody(comboW, barW float32, showProgress bool) {
+	cPos := imgui.CursorPos()
+
+	imgui.SetNextItemWidth(comboW)
+
+	l.recordSnowPos = vector.NewVec2f(cPos.X+comboW/2, cPos.Y-2)
+
+	if imgui.BeginCombo("##Watch mode", launcherConfig.CurrentPMode.String()) {
+		for _, m := range pModes {
+			if imgui.SelectableBoolV(m.String(), launcherConfig.CurrentPMode == m, 0, vzero()) {
+				launcherConfig.CurrentPMode = m
+			}
+		}
+
+		imgui.EndCombo()
+	}
+
+	if launcherConfig.CurrentPMode != Watch {
+		imgui.SameLine()
+		if imgui.Button("Configure") {
+			l.openPopup(newPopupF("Record settings", popDynamic, func() {
+				drawRecordMenu(l.bld)
+			}))
+		}
+	}
+
+	if showProgress {
+		if strings.HasPrefix(l.recordStatus, "Done") {
+			imgui.PushStyleColorVec4(imgui.ColPlotHistogram, imgui.Vec4{
+				X: 0.16,
+				Y: 0.75,
+				Z: 0.18,
+				W: 1,
+			})
+		} else {
+			imgui.PushStyleColorVec4(imgui.ColPlotHistogram, *imgui.StyleColorVec4(imgui.ColCheckMark))
+		}
+
+		imgui.ProgressBarV(l.recordProgress, vec2(barW, imgui.FrameHeight()), l.recordStatus)
+
+		if l.encodeInProgress {
+			imgui.PushFont(Font, 16)
+
+			cPos := imgui.CursorPos()
+
+			imgui.TextUnformatted(l.recordStatusSpeed)
+
+			cPos.X += 95
+
+			imgui.SetCursorPos(cPos)
+
+			eta := int(time.Since(l.encodeStart).Seconds())
+
+			imgui.TextUnformatted("| Elapsed: " + util.FormatSeconds(eta))
+
+			cPos.X += 135
+
+			imgui.SetCursorPos(cPos)
+
+			imgui.TextUnformatted("| " + l.recordStatusETA)
+
+			imgui.PopFont()
+		}
+
+		imgui.PopStyleColor()
+	}
+}
+
+// canStart tells if there is everything needed to launch the gameplay in the current mode.
+func (l *launcher) canStart() bool {
+	s := (launcherConfig.CurrentMode == Replay && l.bld.currentReplay == nil) ||
+		(launcherConfig.CurrentMode != Replay && l.bld.currentMap == nil) ||
+		(launcherConfig.CurrentMode == Knockout && l.bld.numKnockoutReplays() == 0)
+
+	return !s
+}
+
+// drawStartButton draws the button that starts the gameplay (or cancels the running recording).
+func (l *launcher) drawStartButton(idleName string, size imgui.Vec2) {
+	dRun := l.taktchaseRunning && launcherConfig.CurrentPMode == Record
+
+	s := !l.canStart()
+
+	if !dRun {
+		if s {
+			imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), true)
+		}
+	} else {
+		imgui.PopItemFlag()
+	}
+
+	name := idleName
+	if dRun {
+		name = "CANCEL"
+	}
+
+	if imgui.ButtonV(name, size) {
+		l.startOrCancel(dRun)
+	}
+
+	if !dRun {
+		if s {
+			imgui.PopItemFlag()
+		}
+	} else {
+		imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), true)
+	}
+}
+
+func (l *launcher) startOrCancel(dRun bool) {
+	if dRun {
+		if l.taktchaseCmd != nil {
+			goroutines.Run(func() {
+				res := showMessage(mQuestion, "Do you really want to cancel?")
+
+				if res && l.taktchaseCmd != nil {
+					l.taktchaseCmd.Process.Kill()
+					l.taktchaseCleanup(false)
+				}
+			})
+		}
+
+		return
+	}
+
+	if l.selectWindow != nil {
+		l.selectWindow.stopPreview()
+	}
+
+	log.Println(l.bld.getArguments())
+
+	l.triangleSpeed.AddEventS(l.triangleSpeed.GetTime(), l.triangleSpeed.GetTime()+1000, 50, 1)
+
+	if launcherConfig.CurrentPMode != Watch {
+		l.startTaktChase()
+	} else {
+		goroutines.Run(func() {
+			time.Sleep(500 * time.Millisecond)
+			l.startTaktChase()
+		})
+	}
+}
+
 func (l *launcher) drawLowerPanel() {
 	w, h := contentRegionMax().X, contentRegionMax().Y
 
@@ -1175,71 +1363,7 @@ func (l *launcher) drawLowerPanel() {
 
 		imgui.SetCursorPos(vec2(20, h-spacing))
 
-		imgui.SetNextItemWidth((imgui.WindowWidth() - 40) / 4)
-
-		l.recordSnowPos = vector.NewVec2f(20+(imgui.WindowWidth()-40)/4/2, h-spacing-2)
-
-		if imgui.BeginCombo("##Watch mode", launcherConfig.CurrentPMode.String()) {
-			for _, m := range pModes {
-				if imgui.SelectableBoolV(m.String(), launcherConfig.CurrentPMode == m, 0, vzero()) {
-					launcherConfig.CurrentPMode = m
-				}
-			}
-
-			imgui.EndCombo()
-		}
-
-		if launcherConfig.CurrentPMode != Watch {
-			imgui.SameLine()
-			if imgui.Button("Configure") {
-				l.openPopup(newPopupF("Record settings", popDynamic, func() {
-					drawRecordMenu(l.bld)
-				}))
-			}
-		}
-
-		imgui.SetCursorPos(vec2(contentRegionMin().X, h-imgui.FrameHeightWithSpacing()))
-
-		if showProgress {
-			if strings.HasPrefix(l.recordStatus, "Done") {
-				imgui.PushStyleColorVec4(imgui.ColPlotHistogram, imgui.Vec4{
-					X: 0.16,
-					Y: 0.75,
-					Z: 0.18,
-					W: 1,
-				})
-			} else {
-				imgui.PushStyleColorVec4(imgui.ColPlotHistogram, *imgui.StyleColorVec4(imgui.ColCheckMark))
-			}
-
-			imgui.ProgressBarV(l.recordProgress, vec2(w/2, imgui.FrameHeight()), l.recordStatus)
-
-			if l.encodeInProgress {
-				imgui.PushFont(Font, 16)
-
-				cPos := imgui.CursorPos()
-
-				imgui.TextUnformatted(l.recordStatusSpeed)
-
-				cPos.X += 95
-
-				imgui.SetCursorPos(cPos)
-
-				eta := int(time.Since(l.encodeStart).Seconds())
-
-				imgui.TextUnformatted("| Elapsed: " + util.FormatSeconds(eta))
-
-				cPos.X += 135
-
-				imgui.SetCursorPos(cPos)
-
-				imgui.TextUnformatted("| " + l.recordStatusETA)
-
-				imgui.PopFont()
-			}
-
-			imgui.PopStyleColor()
-		}
+		l.drawPModeBody((imgui.WindowWidth()-40)/4, w/2, showProgress)
 	}
 
 	fHwS := imgui.FrameHeightWithSpacing()*2 - imgui.CurrentStyle().FramePadding().X
@@ -1250,98 +1374,28 @@ func (l *launcher) drawLowerPanel() {
 
 	centerTable("dansebutton", w/2.5, func() {
 		imgui.PushFont(Font, 48)
-		{
-			dRun := l.taktchaseRunning && launcherConfig.CurrentPMode == Record
 
-			s := (launcherConfig.CurrentMode == Replay && l.bld.currentReplay == nil) ||
-				(launcherConfig.CurrentMode != Replay && l.bld.currentMap == nil) ||
-				(launcherConfig.CurrentMode == Knockout && l.bld.numKnockoutReplays() == 0)
+		l.drawStartButton("danse!", vec2(bW, fHwS))
 
-			if !dRun {
-				if s {
-					imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), true)
-				}
-			} else {
-				imgui.PopItemFlag()
-			}
-
-			name := "danse!"
-			if dRun {
-				name = "CANCEL"
-			}
-
-			if imgui.ButtonV(name, vec2(bW, fHwS)) {
-				if dRun {
-					if l.taktchaseCmd != nil {
-						goroutines.Run(func() {
-							res := showMessage(mQuestion, "Do you really want to cancel?")
-
-							if res && l.taktchaseCmd != nil {
-								l.taktchaseCmd.Process.Kill()
-								l.taktchaseCleanup(false)
-							}
-						})
-					}
-				} else {
-					if l.selectWindow != nil {
-						l.selectWindow.stopPreview()
-					}
-
-					log.Println(l.bld.getArguments())
-
-					l.triangleSpeed.AddEventS(l.triangleSpeed.GetTime(), l.triangleSpeed.GetTime()+1000, 50, 1)
-
-					if launcherConfig.CurrentPMode != Watch {
-						l.startTaktChase()
-					} else {
-						goroutines.Run(func() {
-							time.Sleep(500 * time.Millisecond)
-							l.startTaktChase()
-						})
-					}
-				}
-			}
-
-			if !dRun {
-				if s {
-					imgui.PopItemFlag()
-				}
-			} else {
-				imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), true)
-			}
-
-			imgui.PopFont()
-		}
+		imgui.PopFont()
 	})
 }
 
-func (l *launcher) drawConfigPanel() {
+func (l *launcher) drawConfigPanelAt(pos imgui.Vec2, width float32) {
 	if l.currentEditor != nil {
 		l.currentEditor.setTaktChaseRunning(l.taktchaseRunning && launcherConfig.CurrentPMode == Watch)
 	}
 
-	w := contentRegionMax().X
+	imgui.SetCursorPos(pos)
 
-	imgui.SetCursorPos(vec2(contentRegionMax().X-float32(w)/2.5, 20))
-
-	if imgui.BeginTableV("rtpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(float32(w)/2.5, 0), -1) {
+	if imgui.BeginTableV("rtpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(width, 0), -1) {
 		imgui.TableSetupColumnV("rtpanel1", imgui.TableColumnFlagsWidthStretch, 0, 0)
 		imgui.TableSetupColumnV("rtpanel2", imgui.TableColumnFlagsWidthFixed, 0, 1)
 
 		imgui.TableNextColumn()
 
 		if imgui.ButtonV("Launcher settings", vec2(-1, 0)) {
-			wSize := imgui.WindowSize()
-
-			lEditor := newPopupF("About", popCustom, drawLauncherConfig)
-			lEditor.width = wSize.X / 2
-			lEditor.height = wSize.Y * 0.9
-
-			lEditor.setCloseListener(func() {
-				saveLauncherConfig()
-			})
-
-			l.openPopup(lEditor)
+			l.openLauncherSettings()
 		}
 
 		imgui.TableNextColumn()
@@ -1551,6 +1605,20 @@ func (l *launcher) drawConfigPanel() {
 			}
 		})
 	}
+}
+
+func (l *launcher) openLauncherSettings() {
+	wSize := imgui.WindowSize()
+
+	lEditor := newPopupF("About", popCustom, drawLauncherConfig)
+	lEditor.width = wSize.X / 2
+	lEditor.height = wSize.Y * 0.9
+
+	lEditor.setCloseListener(func() {
+		saveLauncherConfig()
+	})
+
+	l.openPopup(lEditor)
 }
 
 func (l *launcher) openCurrentSettingsEditor() {

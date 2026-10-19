@@ -107,6 +107,9 @@ type songSelectPopup struct {
 
 	comboOpened bool
 	scrolling   bool
+
+	// set when the beatmap list changed, so the map browser rebuilds its rows
+	browserDirty bool
 }
 
 func newSongSelectPopup(bld *builder, beatmaps []*beatmap.BeatMap) *songSelectPopup {
@@ -131,6 +134,7 @@ func (m *songSelectPopup) setBeatmaps(beatmaps []*beatmap.BeatMap) {
 	}
 
 	m.beatmaps = beatmaps2
+	m.browserDirty = true
 	m.search()
 	m.focusTheMap = true
 }

@@ -21,6 +21,7 @@ var launcherConfig = &launcherConf{
 	PreviewVolume:    0.25,
 	SortMapsBy:       Title,
 	SortAscending:    true,
+	GroupMapsBy:      int(GroupNone),
 	LoadLatestReplay: false,
 	SkipMapUpdate:    false,
 	AutoRefreshDB:    false,
@@ -37,6 +38,7 @@ type launcherConf struct {
 	PreviewVolume    float64
 	SortMapsBy       SortBy
 	SortAscending    bool
+	GroupMapsBy      int
 	LoadLatestReplay bool
 	SkipMapUpdate    bool
 	AutoRefreshDB    bool
