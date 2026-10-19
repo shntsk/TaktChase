@@ -1,19 +1,19 @@
 package common
 
 import (
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/graphics/gui/drawables"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/sprite"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/graphics/gui/drawables"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/sprite"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
-type DanserCoin struct {
+type TaktChaseCoin struct {
 	*BeatSynced
 
 	coinBottom *sprite.Sprite
@@ -24,16 +24,16 @@ type DanserCoin struct {
 	sclM           float64
 }
 
-func NewDanserCoin() *DanserCoin {
-	return newDanserCoin("coinbig.png", 1)
+func NewTaktChaseCoin() *TaktChaseCoin {
+	return newTaktChaseCoin("coinbig.png", 1)
 }
 
-func NewDanserCoinSanta() *DanserCoin {
-	return newDanserCoin("coinbig-santa.png", 1.5625)
+func NewTaktChaseCoinSanta() *TaktChaseCoin {
+	return newTaktChaseCoin("coinbig-santa.png", 1.5625)
 }
 
-func newDanserCoin(txName string, sclM float64) *DanserCoin {
-	coin := new(DanserCoin)
+func newTaktChaseCoin(txName string, sclM float64) *TaktChaseCoin {
+	coin := new(TaktChaseCoin)
 	coin.sclM = sclM
 
 	coin.BeatSynced = NewBeatSynced()
@@ -62,12 +62,12 @@ func newDanserCoin(txName string, sclM float64) *DanserCoin {
 	return coin
 }
 
-func (coin *DanserCoin) SetMap(bMap *beatmap.BeatMap, track bass.ITrack) {
+func (coin *TaktChaseCoin) SetMap(bMap *beatmap.BeatMap, track bass.ITrack) {
 	coin.BeatSynced.SetMap(bMap, track)
 	coin.vis.SetTrack(track)
 }
 
-func (coin *DanserCoin) Update(time float64) {
+func (coin *TaktChaseCoin) Update(time float64) {
 	coin.BeatSynced.Update(time)
 
 	innerCircleScale := 1.05 - easing.OutQuad(coin.Beat)*0.05
@@ -105,7 +105,7 @@ func (coin *DanserCoin) Update(time float64) {
 	coin.vis.Update(time)
 }
 
-func (coin *DanserCoin) Draw(time float64, batch *batch.QuadBatch) {
+func (coin *TaktChaseCoin) Draw(time float64, batch *batch.QuadBatch) {
 	if coin.drawVisualiser {
 		coin.vis.Draw(time, batch)
 	}
@@ -114,6 +114,6 @@ func (coin *DanserCoin) Draw(time float64, batch *batch.QuadBatch) {
 	coin.coinTop.Draw(time, batch)
 }
 
-func (coin *DanserCoin) DrawVisualiser(value bool) {
+func (coin *TaktChaseCoin) DrawVisualiser(value bool) {
 	coin.drawVisualiser = value
 }

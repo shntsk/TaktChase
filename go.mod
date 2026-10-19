@@ -1,4 +1,4 @@
-module github.com/wieku/danser-go
+module github.com/shntsk/taktchase
 
 go 1.27.0
 

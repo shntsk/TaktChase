@@ -1,8 +1,8 @@
 package evaluators
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp220930/preprocessing"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp220930/preprocessing"
 	"math"
 )
 

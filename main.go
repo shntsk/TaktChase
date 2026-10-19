@@ -11,14 +11,14 @@ __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001; /
 import "C"
 
 import (
-	"github.com/wieku/danser-go/app"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/launcher"
+	"github.com/shntsk/taktchase/app"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/launcher"
 	"os"
 )
 
 func main() {
-	env.Init("danser")
+	env.Init("taktchase")
 
 	if len(os.Args) == 1 {
 		launcher.StartLauncher()

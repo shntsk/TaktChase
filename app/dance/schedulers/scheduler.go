@@ -1,10 +1,10 @@
 package schedulers
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/dance/spinners"
-	"github.com/wieku/danser-go/app/graphics"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/dance/spinners"
+	"github.com/shntsk/taktchase/app/graphics"
 )
 
 type Scheduler interface {

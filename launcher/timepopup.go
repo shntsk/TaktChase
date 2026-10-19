@@ -4,17 +4,17 @@ import (
 	"github.com/AllenDang/cimgui-go/imgui"
 	"github.com/go-gl/mathgl/mgl32"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/states/components/overlays/play"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/buffer"
-	"github.com/wieku/danser-go/framework/graphics/viewport"
-	"github.com/wieku/danser-go/framework/math/math32"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/states/components/overlays/play"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/buffer"
+	"github.com/shntsk/taktchase/framework/graphics/viewport"
+	"github.com/shntsk/taktchase/framework/math/math32"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 type timePopup struct {

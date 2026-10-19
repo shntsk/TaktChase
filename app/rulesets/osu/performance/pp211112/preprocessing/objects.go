@@ -1,8 +1,8 @@
 package preprocessing
 
 import (
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
 )
 
 // CreateDifficultyObjects creates difficulty objects needed for star rating calculations

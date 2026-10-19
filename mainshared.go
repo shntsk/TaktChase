@@ -3,17 +3,17 @@ package main
 import "C"
 
 import (
-	"github.com/wieku/danser-go/app"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/launcher"
+	"github.com/shntsk/taktchase/app"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/launcher"
 	"os"
 )
 
-//export danserMain
-func danserMain(isLauncher bool, args []string) {
+//export taktchaseMain
+func taktchaseMain(isLauncher bool, args []string) {
 	os.Args = args
 
-	env.Init("danser")
+	env.Init("taktchase")
 	if isLauncher {
 		launcher.StartLauncher()
 	} else {

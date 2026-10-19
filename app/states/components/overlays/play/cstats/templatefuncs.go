@@ -11,8 +11,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 var templateFuncs = template.FuncMap{

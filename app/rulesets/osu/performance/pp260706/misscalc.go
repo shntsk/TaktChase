@@ -3,8 +3,8 @@ package pp260706
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
 )
 
 func CalculateMissCount(score api.PerfScore, attributes api.Attributes, diff *difficulty.Difficulty) float64 {

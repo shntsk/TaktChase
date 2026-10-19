@@ -2,10 +2,10 @@ package osuapi
 
 import (
 	"context"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/util"
 	"golang.org/x/oauth2"
 	"io"
 	"log"

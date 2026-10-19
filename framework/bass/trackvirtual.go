@@ -7,7 +7,7 @@ package bass
 import "C"
 
 import (
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 type TrackVirtual struct {

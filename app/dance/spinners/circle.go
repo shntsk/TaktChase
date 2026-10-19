@@ -1,9 +1,9 @@
 package spinners
 
 import (
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/math/math32"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/math/math32"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type CircleMover struct {

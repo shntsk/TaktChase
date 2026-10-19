@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/wieku/danser-go/build"
+	"github.com/shntsk/taktchase/build"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,7 +12,7 @@ import (
 
 // GetLatestVersionFromGitHub makes a request to GitHub and returns url and tag of the latest version found
 func GetLatestVersionFromGitHub() (url string, tag string, err error) {
-	request, err := http.NewRequest(http.MethodGet, "https://api.github.com/repos/Wieku/danser-go/releases/latest", nil)
+	request, err := http.NewRequest(http.MethodGet, "https://api.github.com/repos/Wieku/TaktChase/releases/latest", nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -84,7 +84,7 @@ func CheckForUpdate() (UpdateStatus, string, error) {
 		return Ignored, "", nil
 	}
 
-	log.Println("Checking Github for a new version of danser...")
+	log.Println("Checking Github for a new version of taktchase...")
 
 	url, tag, err := GetLatestVersionFromGitHub()
 	if err != nil {

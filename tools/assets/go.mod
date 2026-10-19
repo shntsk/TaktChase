@@ -1,3 +1,3 @@
-module github.com/wieku/danser-go/tools/assets
+module github.com/shntsk/taktchase/tools/assets
 
 go 1.18

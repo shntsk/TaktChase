@@ -1,7 +1,7 @@
 package sprite
 
 import (
-	"github.com/wieku/danser-go/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
 	"math"
 	"sort"
 	"sync"

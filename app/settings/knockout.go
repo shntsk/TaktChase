@@ -17,8 +17,8 @@ func initKnockout() *knockout {
 		HideOverlayOnBreaks: false,
 		MinCursorSize:       3.0,
 		MaxCursorSize:       7.0,
-		AddDanser:           false,
-		DanserName:          "danser",
+		AddTaktChase:           false,
+		TaktChaseName:          "taktchase",
 	}
 }
 
@@ -38,7 +38,7 @@ type knockout struct {
 	// Hide specific mods from being displayed in overlay (like NF)
 	HideMods string `liveedit:"false"`
 
-	// Max players shown (excluding danser) on a map. Caps at 50.
+	// Max players shown (excluding taktchase) on a map. Caps at 50.
 	MaxPlayers int `skip:"true" label:"Max players loaded (legacy)" string:"true" min:"0" max:"100" tooltip:"Applicable only to classic knockout"`
 
 	// Min players shown on a map.
@@ -65,8 +65,8 @@ type knockout struct {
 	SmokeEnabled bool `label:"Show cursor smoke in knockout mode"`
 
 	// Self explanatory
-	AddDanser  bool   `liveedit:"false"`
-	DanserName string `label:"Danser's name" tooltip:"It's also used in danser replay mode" liveedit:"false"`
+	AddTaktChase  bool   `liveedit:"false"`
+	TaktChaseName string `label:"TaktChase's name" tooltip:"It's also used in taktchase replay mode" liveedit:"false"`
 }
 
 type KnockoutMode int

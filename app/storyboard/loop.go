@@ -1,7 +1,7 @@
 package storyboard
 
 import (
-	"github.com/wieku/danser-go/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation"
 	"log"
 	"math"
 	"strconv"

@@ -4,9 +4,9 @@ import (
 	"math"
 	"slices"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
 )
 
 type Harmonic struct {

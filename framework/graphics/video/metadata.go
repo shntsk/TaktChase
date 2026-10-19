@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wieku/danser-go/framework/platform"
+	"github.com/shntsk/taktchase/framework/platform"
 )
 
 type Metadata struct {
@@ -102,7 +102,7 @@ func getProbeOutput(path string, mov bool) *probeOutput {
 
 	if err != nil {
 		if strings.Contains(err.Error(), "127") || strings.Contains(strings.ToLower(err.Error()), "0xc0000135") {
-			log.Println(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/Wieku/danser-go/wiki/FFmpeg. Error: %s", err))
+			log.Println(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/shntsk/TaktChase/wiki/FFmpeg. Error: %s", err))
 		} else {
 			log.Println(fmt.Sprintf("ffprobe: Failed to get media info. Error: %s", err))
 		}

@@ -3,10 +3,10 @@ package skills
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
-	"github.com/wieku/danser-go/framework/collections"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/framework/collections"
 )
 
 type StrainSkill struct {

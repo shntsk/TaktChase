@@ -11,10 +11,10 @@ import (
 
 	"github.com/Zyko0/go-sdl3/sdl"
 
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/graphics/texture"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 type OptionalProps struct {

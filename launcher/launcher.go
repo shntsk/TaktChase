@@ -27,37 +27,37 @@ import (
 	"github.com/sqweek/dialog"
 	"github.com/wieku/rplpa"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/database"
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/app/graphics/gui/drawables"
-	"github.com/wieku/danser-go/app/osuapi"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/states/components/common"
-	"github.com/wieku/danser-go/build"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	"github.com/wieku/danser-go/framework/graphics/viewport"
-	"github.com/wieku/danser-go/framework/math/animation"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/vector"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
-	"github.com/wieku/danser-go/framework/qpc"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/database"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/app/graphics/gui/drawables"
+	"github.com/shntsk/taktchase/app/osuapi"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/states/components/common"
+	"github.com/shntsk/taktchase/build"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	"github.com/shntsk/taktchase/framework/graphics/viewport"
+	"github.com/shntsk/taktchase/framework/math/animation"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/framework/qpc"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 type Mode int
 
 const (
 	CursorDance Mode = iota
-	DanserReplay
+	TaktChaseReplay
 	Replay
 	Knockout
 	Play
@@ -67,7 +67,7 @@ func (m Mode) String() string {
 	switch m {
 	case CursorDance:
 		return "Cursor dance / mandala / tag"
-	case DanserReplay:
+	case TaktChaseReplay:
 		return "Cursor dance with UI"
 	case Replay:
 		return "Watch a replay"
@@ -80,7 +80,7 @@ func (m Mode) String() string {
 	return ""
 }
 
-var modes = []Mode{CursorDance, DanserReplay, Replay, Knockout, Play}
+var modes = []Mode{CursorDance, TaktChaseReplay, Replay, Knockout, Play}
 
 type PMode int
 
@@ -117,7 +117,7 @@ type launcher struct {
 	bg *common.Background
 
 	batch *batch.QuadBatch
-	coin  *common.DanserCoin
+	coin  *common.TaktChaseCoin
 
 	bld *builder
 
@@ -140,7 +140,7 @@ type launcher struct {
 	configEditOpened bool
 	configEditPos    imgui.Vec2
 
-	danserRunning       bool
+	taktchaseRunning       bool
 	recordProgress      float32
 	recordStatus        string
 	recordStatusSpeed   string
@@ -151,7 +151,7 @@ type launcher struct {
 	triangleSpeed    *animation.Glider
 	encodeInProgress bool
 	encodeStart      time.Time
-	danserCmd        *exec.Cmd
+	taktchaseCmd        *exec.Cmd
 	popupStack       []iPopup
 
 	selectWindow *songSelectPopup
@@ -307,13 +307,13 @@ func (l *launcher) startContext() {
 	settings.Graphics.WindowWidth = 800
 	settings.Graphics.WindowHeight = 534
 
-	iconName := "dansercoin*"
+	iconName := "taktchasecoin*"
 
 	if l.christmas {
 		iconName += "-s"
 	}
 
-	gcontext.SDLCreateWindow(800, 534, "danser-go "+build.VERSION+" launcher", gcontext.OptionalProps{
+	gcontext.SDLCreateWindow(800, 534, "TaktChase "+build.VERSION+" launcher", gcontext.OptionalProps{
 		IconName:       iconName,
 		ScaleToMonitor: true,
 		BuiltinMSAA:    true,
@@ -356,9 +356,9 @@ func (l *launcher) startContext() {
 	}
 
 	if l.christmas {
-		l.coin = common.NewDanserCoinSanta()
+		l.coin = common.NewTaktChaseCoinSanta()
 	} else {
-		l.coin = common.NewDanserCoin()
+		l.coin = common.NewTaktChaseCoin()
 	}
 
 	l.coin.DrawVisualiser(true)
@@ -371,7 +371,7 @@ func (l *launcher) startContext() {
 		l.loadBeatmaps()
 
 		gcontext.RegisterListener(func(event gcontext.DropEvent) {
-			if l.danserRunning {
+			if l.taktchaseRunning {
 				return
 			}
 
@@ -385,14 +385,14 @@ func (l *launcher) startContext() {
 		})
 
 		gcontext.RegisterListener(func(_ gcontext.CloseEvent) {
-			if l.danserCmd != nil {
+			if l.taktchaseCmd != nil {
 				gcontext.SetShouldClose(false)
 
 				goroutines.Run(func() {
 					if showMessage(mQuestion, "Recording is in progress, do you want to exit?") {
-						if l.danserCmd != nil {
-							l.danserCmd.Process.Kill()
-							l.danserCleanup(false)
+						if l.taktchaseCmd != nil {
+							l.taktchaseCmd.Process.Kill()
+							l.taktchaseCleanup(false)
 						}
 
 						gcontext.SetShouldClose(true)
@@ -655,7 +655,7 @@ func (l *launcher) drawImgui() {
 
 	resetPopupHierarchyInfo()
 
-	lock := l.danserRunning
+	lock := l.taktchaseRunning
 
 	if lock {
 		imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), true)
@@ -757,14 +757,14 @@ func (l *launcher) drawMain() {
 
 	imgui.PopFont()
 
-	if imgui.IsMouseClickedBool(0) && !l.danserRunning {
+	if imgui.IsMouseClickedBool(0) && !l.taktchaseRunning {
 		gcontext.StopProgress()
 		l.showProgressBar = false
 		l.recordStatus = ""
 		l.recordProgress = 0
 	}
 
-	if !l.danserRunning && l.beatmapDirUpdated && qpc.GetMilliTimeF() >= l.showBeatmapAlert {
+	if !l.taktchaseRunning && l.beatmapDirUpdated && qpc.GetMilliTimeF() >= l.showBeatmapAlert {
 		reload := launcherConfig.AutoRefreshDB
 
 		if !reload {
@@ -1251,7 +1251,7 @@ func (l *launcher) drawLowerPanel() {
 	centerTable("dansebutton", w/2.5, func() {
 		imgui.PushFont(Font, 48)
 		{
-			dRun := l.danserRunning && launcherConfig.CurrentPMode == Record
+			dRun := l.taktchaseRunning && launcherConfig.CurrentPMode == Record
 
 			s := (launcherConfig.CurrentMode == Replay && l.bld.currentReplay == nil) ||
 				(launcherConfig.CurrentMode != Replay && l.bld.currentMap == nil) ||
@@ -1272,13 +1272,13 @@ func (l *launcher) drawLowerPanel() {
 
 			if imgui.ButtonV(name, vec2(bW, fHwS)) {
 				if dRun {
-					if l.danserCmd != nil {
+					if l.taktchaseCmd != nil {
 						goroutines.Run(func() {
 							res := showMessage(mQuestion, "Do you really want to cancel?")
 
-							if res && l.danserCmd != nil {
-								l.danserCmd.Process.Kill()
-								l.danserCleanup(false)
+							if res && l.taktchaseCmd != nil {
+								l.taktchaseCmd.Process.Kill()
+								l.taktchaseCleanup(false)
 							}
 						})
 					}
@@ -1292,11 +1292,11 @@ func (l *launcher) drawLowerPanel() {
 					l.triangleSpeed.AddEventS(l.triangleSpeed.GetTime(), l.triangleSpeed.GetTime()+1000, 50, 1)
 
 					if launcherConfig.CurrentPMode != Watch {
-						l.startDanser()
+						l.startTaktChase()
 					} else {
 						goroutines.Run(func() {
 							time.Sleep(500 * time.Millisecond)
-							l.startDanser()
+							l.startTaktChase()
 						})
 					}
 				}
@@ -1317,7 +1317,7 @@ func (l *launcher) drawLowerPanel() {
 
 func (l *launcher) drawConfigPanel() {
 	if l.currentEditor != nil {
-		l.currentEditor.setDanserRunning(l.danserRunning && launcherConfig.CurrentPMode == Watch)
+		l.currentEditor.setTaktChaseRunning(l.taktchaseRunning && launcherConfig.CurrentPMode == Watch)
 	}
 
 	w := contentRegionMax().X
@@ -1475,7 +1475,7 @@ func (l *launcher) drawConfigPanel() {
 
 		imgui.TableNextColumn()
 
-		dRun := l.danserRunning && launcherConfig.CurrentPMode == Watch
+		dRun := l.taktchaseRunning && launcherConfig.CurrentPMode == Watch
 
 		if dRun {
 			imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), false)
@@ -1567,7 +1567,7 @@ func (l *launcher) openCurrentSettingsEditor() {
 		l.currentEditor = newSettingsEditor(l.currentConfig)
 	}
 
-	l.currentEditor.setDanserRunning(l.danserRunning)
+	l.currentEditor.setTaktChaseRunning(l.taktchaseRunning)
 	l.currentEditor.setCloseListener(saveFunc)
 	l.currentEditor.setSaveListener(saveFunc)
 
@@ -1686,7 +1686,7 @@ func (l *launcher) setConfig(s string) {
 	}
 }
 
-func (l *launcher) startDanser() {
+func (l *launcher) startTaktChase() {
 	l.recordProgress = 0
 	l.recordStatus = ""
 	l.recordStatusSpeed = ""
@@ -1696,7 +1696,7 @@ func (l *launcher) startDanser() {
 	dExec := os.Args[0]
 
 	if build.Stream == "Release" {
-		dExec = filepath.Join(env.LibDir(), build.DanserExec)
+		dExec = filepath.Join(env.LibDir(), build.TaktChaseExec)
 	}
 
 	if runtime.GOOS != "windows" {
@@ -1705,20 +1705,20 @@ func (l *launcher) startDanser() {
 		}
 	}
 
-	l.danserCmd = exec.Command(dExec, l.bld.getArguments()...)
+	l.taktchaseCmd = exec.Command(dExec, l.bld.getArguments()...)
 
 	rFile, oFile, err := os.Pipe()
 	if err != nil {
 		panic(err)
 	}
 
-	l.danserCmd.Stderr = os.Stderr
-	l.danserCmd.Stdin = os.Stdin
-	l.danserCmd.Stdout = io.MultiWriter(os.Stdout, oFile)
+	l.taktchaseCmd.Stderr = os.Stderr
+	l.taktchaseCmd.Stdin = os.Stdin
+	l.taktchaseCmd.Stdout = io.MultiWriter(os.Stdout, oFile)
 
-	err = l.danserCmd.Start()
+	err = l.taktchaseCmd.Start()
 	if err != nil {
-		showMessage(mError, "danser failed to start! %s", err.Error())
+		showMessage(mError, "taktchase failed to start! %s", err.Error())
 		return
 	}
 
@@ -1728,7 +1728,7 @@ func (l *launcher) startDanser() {
 		l.showProgressBar = true
 	}
 
-	l.danserRunning = true
+	l.taktchaseRunning = true
 	l.recordStatus = "Preparing..."
 
 	panicMessage := ""
@@ -1824,9 +1824,9 @@ func (l *launcher) startDanser() {
 	})
 
 	goroutines.Run(func() {
-		err = l.danserCmd.Wait()
+		err = l.taktchaseCmd.Wait()
 
-		l.danserCleanup(err == nil)
+		l.taktchaseCleanup(err == nil)
 
 		restore := true
 
@@ -1845,7 +1845,7 @@ func (l *launcher) startDanser() {
 				gcontext.Restore()
 				gcontext.Focus()
 
-				showMessage(mError, "danser crashed! %s\n\n%s", err.Error(), pMsg)
+				showMessage(mError, "taktchase crashed! %s\n\n%s", err.Error(), pMsg)
 			})
 		} else if launcherConfig.CurrentPMode != Watch && launcherConfig.CurrentMode != Play {
 			if launcherConfig.ShowFileAfter && resultFile != "" {
@@ -1866,12 +1866,12 @@ func (l *launcher) startDanser() {
 	})
 }
 
-func (l *launcher) danserCleanup(success bool) {
+func (l *launcher) taktchaseCleanup(success bool) {
 	l.recordStatusSpeed = ""
 	l.recordStatusETA = ""
-	l.danserRunning = false
+	l.taktchaseRunning = false
 	l.triangleSpeed.AddEvent(l.triangleSpeed.GetTime(), l.triangleSpeed.GetTime()+500, 1)
-	l.danserCmd = nil
+	l.taktchaseCmd = nil
 
 	if !success {
 		goroutines.CallMain(func() {

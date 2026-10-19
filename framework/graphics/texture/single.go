@@ -4,7 +4,7 @@ import (
 	"image"
 	"runtime"
 
-	"github.com/wieku/danser-go/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/goroutines"
 )
 
 type TextureSingle struct {

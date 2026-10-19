@@ -3,11 +3,11 @@ package pp260706
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 type scoreSimulator struct {

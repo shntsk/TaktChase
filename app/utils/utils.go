@@ -3,8 +3,8 @@ package utils
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/wieku/danser-go/framework/assets"
-	"github.com/wieku/danser-go/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/assets"
+	"github.com/shntsk/taktchase/framework/graphics/texture"
 	_ "golang.org/x/image/bmp"
 	"io"
 	"log"

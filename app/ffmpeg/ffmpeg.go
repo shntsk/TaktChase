@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/platform"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/platform"
 )
 
 var output string
@@ -24,7 +24,7 @@ func preCheck() {
 	out, err := cmd.Output()
 	if err != nil {
 		if strings.Contains(err.Error(), "127") || strings.Contains(strings.ToLower(err.Error()), "0xc0000135") {
-			panic(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/Wieku/danser-go/wiki/FFmpeg. Error: %s", err))
+			panic(fmt.Sprintf("ffmpeg was installed incorrectly! Please make sure needed libraries (libs/*.so or bin/*.dll) are installed as well. Follow download instructions at https://github.com/shntsk/TaktChase/wiki/FFmpeg. Error: %s", err))
 		}
 
 		panic(fmt.Sprintf("Failed to get encoder info. Error: %s", err))
@@ -71,7 +71,7 @@ func StartFFmpeg(fps, _w, _h int, audioFPS float64, _output string) {
 	preCheck()
 
 	if strings.TrimSpace(_output) == "" {
-		_output = "danser_" + time.Now().Format("2006-01-02_15-04-05")
+		_output = "taktchase_" + time.Now().Format("2006-01-02_15-04-05")
 	}
 
 	output = _output

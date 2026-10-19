@@ -1,8 +1,8 @@
 package evaluators
 
 import (
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp241007/preprocessing"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp241007/preprocessing"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"math"
 )
 

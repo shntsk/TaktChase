@@ -74,8 +74,8 @@ func (d *defaultsFactory) InitSpinner() *spinner {
 }
 
 type cursorDance struct {
-	Movers             []*mover   `new:"InitMover" wiki:"Help|https://github.com/Wieku/danser-go/wiki/Movers#available-movers"`
-	Spinners           []*spinner `new:"InitSpinner" wiki:"Help|https://github.com/Wieku/danser-go/wiki/Movers#available-spinner-movers"`
+	Movers             []*mover   `new:"InitMover" wiki:"Help|https://github.com/shntsk/TaktChase/wiki/Movers#available-movers"`
+	Spinners           []*spinner `new:"InitSpinner" wiki:"Help|https://github.com/shntsk/TaktChase/wiki/Movers#available-spinner-movers"`
 	ComboTag           bool       `liveedit:"false" tooltip:"Splits objects by combo, like osu!stable TAG multiplayer"`
 	Battle             bool       `liveedit:"false" tooltip:"All cursors together, like a knockout"`
 	DoSpinnersTogether bool       `liveedit:"false"`

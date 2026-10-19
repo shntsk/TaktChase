@@ -1,9 +1,9 @@
 package settings
 
 import (
-	"github.com/wieku/danser-go/app/utils"
-	color2 "github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/utils"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 type HSV struct {

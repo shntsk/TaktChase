@@ -1,8 +1,8 @@
 package curves
 
 import (
-	. "github.com/wieku/danser-go/framework/math/math87"
-	"github.com/wieku/danser-go/framework/math/vector"
+	. "github.com/shntsk/taktchase/framework/math/math87"
+	"github.com/shntsk/taktchase/framework/math/vector"
 	"math"
 )
 

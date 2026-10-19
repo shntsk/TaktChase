@@ -1,15 +1,15 @@
 package utils
 
 import (
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
 
 	"os"
 	"os/exec"
 )
 
 func QuickRestart() {
-	danserPath := os.Args[0]
+	taktchasePath := os.Args[0]
 
 	arguments := make([]string, 0)
 
@@ -36,7 +36,7 @@ func QuickRestart() {
 		arguments = append(arguments, "-quickstart")
 	}
 
-	cmd := exec.Command(danserPath, arguments...)
+	cmd := exec.Command(taktchasePath, arguments...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

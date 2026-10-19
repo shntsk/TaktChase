@@ -1,7 +1,7 @@
 package curves
 
 import (
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 // NewBSpline creates a spline that goes through all given control points.

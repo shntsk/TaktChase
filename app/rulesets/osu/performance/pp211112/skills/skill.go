@@ -4,9 +4,9 @@ import (
 	"math"
 	"slices"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp211112/preprocessing"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp211112/preprocessing"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 type Skill struct {

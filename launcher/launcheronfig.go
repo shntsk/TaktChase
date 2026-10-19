@@ -2,9 +2,9 @@ package launcher
 
 import (
 	"encoding/json"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"io"
 	"io/fs"
 	"os"

@@ -1,7 +1,7 @@
 package frame
 
 import (
-	"github.com/wieku/danser-go/framework/qpc"
+	"github.com/shntsk/taktchase/framework/qpc"
 	"runtime"
 	"time"
 )

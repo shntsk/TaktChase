@@ -3,8 +3,8 @@ package camera
 import (
 	"github.com/go-gl/mathgl/mgl32"
 
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 const OsuWidth = 512.0

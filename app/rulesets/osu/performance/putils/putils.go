@@ -3,7 +3,7 @@ package putils
 import (
 	"math"
 
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 func BPMToMillisecondsD(bpm float64) float64 {

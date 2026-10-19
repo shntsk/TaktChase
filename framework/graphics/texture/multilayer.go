@@ -2,8 +2,8 @@ package texture
 
 import (
 	"github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/wieku/danser-go/framework/goroutines"
-	color2 "github.com/wieku/danser-go/framework/math/color"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
 	"runtime"
 )
 

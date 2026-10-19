@@ -14,7 +14,7 @@ A clear and concise description of what the bug is.
 If applicable, add screenshots to help explain your problem.
 
 **Logs**
-Put danser.log here.
+Put taktchase.log here.
 
 **Computer configuration:**
 Operating System: Windows 10

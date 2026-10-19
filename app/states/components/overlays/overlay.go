@@ -1,10 +1,10 @@
 package overlays
 
 import (
-	"github.com/wieku/danser-go/app/graphics"
-	"github.com/wieku/danser-go/framework/bass"
-	"github.com/wieku/danser-go/framework/graphics/batch"
-	color2 "github.com/wieku/danser-go/framework/math/color"
+	"github.com/shntsk/taktchase/app/graphics"
+	"github.com/shntsk/taktchase/framework/bass"
+	"github.com/shntsk/taktchase/framework/graphics/batch"
+	color2 "github.com/shntsk/taktchase/framework/math/color"
 )
 
 type Overlay interface {

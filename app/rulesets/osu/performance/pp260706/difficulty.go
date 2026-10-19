@@ -5,13 +5,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/api"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/preprocessing"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706/skills"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/api"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/preprocessing"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706/skills"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 )
 
 const (

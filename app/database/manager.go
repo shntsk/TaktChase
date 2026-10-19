@@ -16,15 +16,15 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/wieku/danser-go/app/beatmap"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/pp260706"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/app/utils"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/files"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/util"
+	"github.com/shntsk/taktchase/app/beatmap"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/pp260706"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/app/utils"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/files"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/util"
 )
 
 var dbFile *sql.DB
@@ -78,7 +78,7 @@ func Init() error {
 		&M20220622{},
 	}
 
-	dbFile, err = sql.Open("sqlite3", filepath.Join(env.DataDir(), "danser.db"))
+	dbFile, err = sql.Open("sqlite3", filepath.Join(env.DataDir(), "taktchase.db"))
 	if err != nil {
 		return err
 	}

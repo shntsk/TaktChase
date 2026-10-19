@@ -3,7 +3,7 @@ package curves
 import (
 	"math"
 
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 func ApproximateCircularArc(pt1, pt2, pt3 vector.Vector2f, detail float32) []vector.Vector2f {

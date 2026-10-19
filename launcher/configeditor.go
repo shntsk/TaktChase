@@ -16,15 +16,15 @@ import (
 	"github.com/AllenDang/cimgui-go/imgui"
 	"github.com/sqweek/dialog"
 
-	"github.com/wieku/danser-go/app/osuapi"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/env"
-	"github.com/wieku/danser-go/framework/goroutines"
-	"github.com/wieku/danser-go/framework/math/color"
-	"github.com/wieku/danser-go/framework/math/math32"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/platform"
-	"github.com/wieku/danser-go/framework/platform/gcontext"
+	"github.com/shntsk/taktchase/app/osuapi"
+	"github.com/shntsk/taktchase/app/settings"
+	"github.com/shntsk/taktchase/framework/env"
+	"github.com/shntsk/taktchase/framework/goroutines"
+	"github.com/shntsk/taktchase/framework/math/color"
+	"github.com/shntsk/taktchase/framework/math/math32"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/platform"
+	"github.com/shntsk/taktchase/framework/platform/gcontext"
 )
 
 const padY = 30
@@ -53,7 +53,7 @@ type settingsEditor struct {
 	keyChange       string
 	keyChangeVal    reflect.Value
 	keyChangeOpened bool
-	danserRunning   bool
+	taktchaseRunning   bool
 
 	saveListener func()
 
@@ -92,8 +92,8 @@ func (editor *settingsEditor) updateKey(event gcontext.KeyEvent) {
 	}
 }
 
-func (editor *settingsEditor) setDanserRunning(running bool) {
-	editor.danserRunning = running
+func (editor *settingsEditor) setTaktChaseRunning(running bool) {
+	editor.taktchaseRunning = running
 }
 
 func (editor *settingsEditor) setSaveListener(saveListener func()) {
@@ -108,7 +108,7 @@ func (editor *settingsEditor) drawEditor() {
 	imgui.PushStyleColorVec4(imgui.ColWindowBg, vec4(0, 0, 0, .9))
 	imgui.PushStyleColorVec4(imgui.ColFrameBg, vec4(.2, .2, .2, 1))
 
-	currentRunning := editor.danserRunning
+	currentRunning := editor.taktchaseRunning
 
 	imgui.PushFont(Font, 20)
 
@@ -206,9 +206,9 @@ func (editor *settingsEditor) drawEditor() {
 	imgui.PushFont(Font, 20)
 
 	if currentRunning {
-		centerTable("tabdanser is running", -1, func() {
+		centerTable("tabtaktchase is running", -1, func() {
 			imgui.AlignTextToFramePadding()
-			imgui.TextUnformatted("Danser is running! Click")
+			imgui.TextUnformatted("TaktChase is running! Click")
 			imgui.SameLine()
 			if imgui.Button("Apply##drunning") {
 				if editor.saveListener != nil {
@@ -458,7 +458,7 @@ func (editor *settingsEditor) buildMainSection(jsonPath, sPath, name string, u r
 			imgui.SameLine()
 
 			if imgui.Button("Help##auth") {
-				platform.OpenURL("https://github.com/Wieku/danser-go/wiki/APIv2-Tutorial")
+				platform.OpenURL("https://github.com/shntsk/TaktChase/wiki/APIv2-Tutorial")
 			}
 		})
 	}
@@ -1529,7 +1529,7 @@ func (editor *settingsEditor) tryLockLive(d reflect.StructField) bool {
 		liveEdit = false
 	}
 
-	dRunLock := !liveEdit && editor.danserRunning
+	dRunLock := !liveEdit && editor.taktchaseRunning
 
 	if dRunLock {
 		imgui.BeginGroup()
@@ -1549,9 +1549,9 @@ func (editor *settingsEditor) unlockLive(plural bool) {
 		imgui.BeginTooltip()
 
 		if plural {
-			imgui.TextUnformatted("These options can't be edited while danser is running.")
+			imgui.TextUnformatted("These options can't be edited while taktchase is running.")
 		} else {
-			imgui.TextUnformatted("This option can't be edited while danser is running.")
+			imgui.TextUnformatted("This option can't be edited while taktchase is running.")
 		}
 
 		imgui.EndTooltip()

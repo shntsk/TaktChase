@@ -3,11 +3,11 @@ package preprocessing
 import (
 	"math"
 
-	"github.com/wieku/danser-go/app/beatmap/difficulty"
-	"github.com/wieku/danser-go/app/beatmap/objects"
-	"github.com/wieku/danser-go/app/rulesets/osu/performance/putils"
-	"github.com/wieku/danser-go/framework/math/mutils"
-	"github.com/wieku/danser-go/framework/math/vector"
+	"github.com/shntsk/taktchase/app/beatmap/difficulty"
+	"github.com/shntsk/taktchase/app/beatmap/objects"
+	"github.com/shntsk/taktchase/app/rulesets/osu/performance/putils"
+	"github.com/shntsk/taktchase/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 const (
@@ -184,7 +184,7 @@ func (o *DifficultyObject) Next(forwardsIndex int) *DifficultyObject {
 
 func (o *DifficultyObject) setDistances() {
 	if currentSlider, ok := o.BaseObject.(*LazySlider); ok {
-		// danser's RepeatCount considers first span, that's why we have to subtract 1 here
+		// taktchase's RepeatCount considers first span, that's why we have to subtract 1 here
 		o.LazyTravelDistance = currentSlider.LazyTravelDistance
 		o.LazyTravelTime = currentSlider.LazyTravelTime
 

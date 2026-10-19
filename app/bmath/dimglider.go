@@ -2,8 +2,8 @@ package bmath
 
 import (
 	"cmp"
-	"github.com/wieku/danser-go/framework/math/animation/easing"
-	"github.com/wieku/danser-go/framework/math/mutils"
+	"github.com/shntsk/taktchase/framework/math/animation/easing"
+	"github.com/shntsk/taktchase/framework/math/mutils"
 	"slices"
 )
 
