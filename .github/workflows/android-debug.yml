@@ -140,12 +140,13 @@ jobs:
         if: success()
         run: |
           {
-            echo "### Android feasibility prototype (stage 2)"
+            echo "### Android Stage 3 — GLES renderer checkpoint"
             echo
-            echo "- Debug APK built and **statically verified** (arm64-v8a libs, JNI/Go symbols, 16 KB alignment)."
-            echo "- It has **not** been run by this job. Install it on a device and check \`adb logcat -s TaktChase GoProbe\`"
-            echo "  for \`TAKT_PROBE go_selftest=PASS\`, \`java_jni_selftest=PASS\` and \`scene_check=PASS\`."
-            echo "- This is a prototype, not the ported game."
+            echo "- The desktop QuadBatch package passed go vet and go test compilation checks."
+            echo "- Debug APK built and statically verified (arm64-v8a libraries, JNI/Go symbols, 16 KB alignment)."
+            echo "- This build job does not execute the ARM64 APK. Runtime markers and GLES shader checks belong to the separate x86_64 emulator job."
+            echo "- The emulator job must pass on Stage 3 pushes; that does not prove operation on a physical ARM64 phone."
+            echo "- The triangle remains diagnostic. The complete renderer/gameplay port is not finished."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload build logs on failure
