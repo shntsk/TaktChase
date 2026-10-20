@@ -20,7 +20,7 @@ The first source-level refactor creates a renderer seam in the existing game cod
 
 - `framework/graphics/batch/batch.go` now owns the same public `QuadBatch` API, transform calculations, sprite ordering and packed instance data. It sends GPU work through the internal `spriteBatchRenderer` interface.
 - `framework/graphics/batch/renderer_desktop.go` contains the existing desktop OpenGL resource setup and draw calls. This preserves the current desktop implementation behind the interface and is excluded from Android builds with a build constraint.
-- The Android implementation of `spriteBatchRenderer` is **not implemented yet**. The new interface is the connection point, not a claim that the desktop GPU calls already work on GLES.
+- `framework/graphics/batch/renderer_android.go` now implements the same interface using GLES 3 calls, a CPU-side instance buffer and offset-zero uploads followed by `glDrawElementsInstanced`. This avoids relying on desktop `baseInstance`. It has not yet been compiled as part of the Android game build or run on an emulator/device.
 
 The remaining platform-specific work includes:
 
