@@ -30,7 +30,7 @@ The remaining platform-specific work includes:
 - `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and direct program-uniform APIs such as `ProgramUniform1fv`.
 - The Go batch API still imports the existing texture package, whose resource implementation also needs a GLES backend before the root gameplay module can be built for Android.
 
-The next backend should use ordinary GLES buffer/texture allocation and updates, configure vertex attributes with GLES calls, bind the shader before changing uniforms, and emulate base-instance batching by uploading each flush into a fresh/offset-zero buffer before `glDrawElementsInstanced`. That avoids requiring desktop base-instance semantics. These changes must remain separate from the desktop implementation.
+The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The remaining resource blocker is texture creation/upload: `framework/graphics/texture/texture.go` still calls desktop DSA functions, and the root gameplay module has not yet been connected to the Gradle/SDL/JNI build. Those must be ported before the backend can draw actual game content.
 
 The generated sprite shader test verifies only shader syntax and interface. It doesn't prove the quad batch, its textures, or hit objects can yet render on Android.
 
