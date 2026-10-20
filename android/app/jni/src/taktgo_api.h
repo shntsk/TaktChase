@@ -14,6 +14,10 @@ int32_t TaktProbeAdd(int32_t a, int32_t b);
 int64_t TaktProbeSumParallel(int32_t n);
 /* Writes a NUL-terminated string into buf; returns its length or -1. */
 int32_t TaktProbeDescribe(char *buf, int32_t capacity);
+/* GLES renderer fixture: called only with SDL's GLES context current. */
+int32_t TaktRendererInit(void);
+int32_t TaktRendererDraw(void);
+int32_t TaktRendererDestroy(void);
 
 #ifdef __cplusplus
 }
