@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wieku/rplpa"
+
 	"github.com/shntsk/taktchase/app/beatmap"
 	"github.com/shntsk/taktchase/app/beatmap/difficulty"
 	"github.com/shntsk/taktchase/app/dance/input"
@@ -38,6 +40,11 @@ type PlayerController struct {
 
 	quickRestart     bool
 	quickRestartTime float64
+
+	replayFrames        []*rplpa.ReplayData
+	replayLastTime      float64
+	replaySampleStarted bool
+	replaySaved         bool
 }
 
 func NewPlayerController() Controller {
@@ -162,6 +169,11 @@ func (controller *PlayerController) Update(time float64, delta float64) {
 	controller.lastTime = time
 
 	controller.cursors[0].Update(delta)
+	controller.captureReplayFrame(time)
+}
+
+func (controller *PlayerController) ReleaseMouseCapture() {
+	controller.inside = false
 }
 
 func (controller *PlayerController) GetRuleset() *osu.OsuRuleSet {
