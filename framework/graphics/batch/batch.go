@@ -25,6 +25,7 @@ type spriteBatchRenderer interface {
 	setProjection(projection mgl32.Mat4)
 	flush(tex textureapi.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget
 	end()
+	dispose()
 }
 
 type QuadBatch struct {
@@ -47,6 +48,7 @@ type QuadBatch struct {
 	drawing       bool
 	maxSprites    int
 	chunkOffset   int
+	disposed      bool
 }
 
 func NewQuadBatch() *QuadBatch {
@@ -129,6 +131,19 @@ func (batch *QuadBatch) End() {
 	batch.drawing = false
 	batch.Flush()
 	batch.renderer.end()
+}
+
+func (batch *QuadBatch) Dispose() {
+	if batch.disposed {
+		return
+	}
+	if batch.drawing {
+		panic("cannot dispose QuadBatch while drawing")
+	}
+	batch.renderer.dispose()
+	batch.data = nil
+	batch.texture = nil
+	batch.disposed = true
 }
 
 func (batch *QuadBatch) SetColor(r, g, b, a float64) {
