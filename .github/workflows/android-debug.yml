@@ -43,6 +43,30 @@ jobs:
       # actions are pinned to full commit SHAs (tag in the comment)
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      # The copied SDL template contains an unrecognized wrapper JAR. Repair only
+      # that exact known file; reject any unexpected replacement rather than masking it.
+      - name: Restore trusted Gradle 8.12 wrapper JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrapper="android/gradle/wrapper/gradle-wrapper.jar"
+          current_sha="$(sha256sum "$wrapper" | awk '{print $1}')"
+          official_sha="2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046"
+          inherited_sha="2c23278a62dc9f96ab11bee897d9f53e6479d6419135e4560ce822a6431df5e5"
+
+          if [[ "$current_sha" == "$official_sha" ]]; then
+            echo "Gradle 8.12 wrapper JAR is already verified."
+          elif [[ "$current_sha" == "$inherited_sha" ]]; then
+            curl --fail --silent --show-error --location --retry 3 \
+              "https://raw.githubusercontent.com/gradle/gradle/a3cacb207fec727859be9354c1937da2e59004c1/gradle/wrapper/gradle-wrapper.jar" \
+              --output "${wrapper}.tmp"
+            echo "$official_sha  ${wrapper}.tmp" | sha256sum --check
+            mv "${wrapper}.tmp" "$wrapper"
+          else
+            echo "::error::Unexpected Gradle wrapper JAR SHA-256: $current_sha"
+            exit 1
+          fi
+
       - name: Validate Gradle wrapper checksum
         uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
@@ -57,6 +81,8 @@ jobs:
           cache: false
 
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        with:
+          packages: platform-tools
 
       - name: Install Android SDK components (pinned)
         run: |
