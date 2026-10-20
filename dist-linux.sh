@@ -31,7 +31,10 @@ gcc -no-pie --verbose -O3 -D LAUNCHER -o $BUILD_DIR/taktchase -I. cmain/main_tak
 
 rm $BUILD_DIR/taktchase-core.h
 
-go run tools/ffmpeg/ffmpeg.go $BUILD_DIR/
+# Bundle FFmpeg into the package. Set SKIP_FFMPEG=1 to skip (the app falls back to ffmpeg from PATH).
+if [[ -z "$SKIP_FFMPEG" ]]; then
+  go run tools/ffmpeg/ffmpeg.go $BUILD_DIR/
+fi
 
 mkdir -p $TARGET_DIR
 
