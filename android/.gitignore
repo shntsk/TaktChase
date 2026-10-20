@@ -1,0 +1,17 @@
+# Fetched at a pinned commit by scripts/fetch-sdl.sh; never committed.
+app/jni/SDL/
+# Built by scripts/build-go.sh.
+app/src/main/jniLibs/
+go/build/
+# Gradle / Android Studio.
+.gradle/
+build/
+app/build/
+app/.cxx/
+local.properties
+*.iml
+.idea/
+
+# The root .gitignore ignores anything named "taktchase" (binary name); the Java
+# package directory has that name too, so re-include it explicitly.
+!taktchase/

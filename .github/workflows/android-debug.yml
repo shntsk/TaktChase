@@ -1,0 +1,229 @@
+# Stage 2 of the Android port: feasibility prototype only (SDL3 + GLES + Go).
+# Independent from the desktop release workflow. It builds a debug APK for
+# arm64-v8a; it does NOT build the real game.
+name: Android debug (feasibility prototype)
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-debug.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-debug.yml'
+  workflow_dispatch:
+    inputs:
+      run_emulator:
+        description: 'Also run the optional x86_64 emulator smoke test (diagnostic, non-blocking)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.27.2'        # same as .github/workflows/release.yml and go.mod
+  JAVA_VERSION: '17'          # required by Gradle 8.12 / AGP 8.7.3
+  NDK_VERSION: '28.2.13676358'
+  BUILD_TOOLS_VERSION: '35.0.0'
+  PLATFORM: 'android-35'
+  CMAKE_VERSION: '3.22.1'
+
+jobs:
+  build:
+    name: Build debug APK (arm64-v8a)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # actions are pinned to full commit SHAs (tag in the comment)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+        with:
+          gradle-version: '8.12'
+          validate-wrappers: false   # o build usa o Gradle instalado, não o wrapper
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Install Android SDK components (pinned)
+        run: |
+          set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install \
+            "platforms;${PLATFORM}" \
+            "build-tools;${BUILD_TOOLS_VERSION}" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;${CMAKE_VERSION}"
+          ndk="${ANDROID_HOME}/ndk/${NDK_VERSION}"
+          test -x "${ndk}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" \
+            || { echo "::error::NDK ${NDK_VERSION} not installed correctly"; exit 1; }
+          echo "ANDROID_NDK_HOME=${ndk}" >> "$GITHUB_ENV"
+
+      - name: Go probe - vet and unit tests
+        working-directory: android/go
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          test "$(go env GOVERSION)" = "go${GO_VERSION}" \
+            || { echo "::error::Go $(go env GOVERSION) found, go${GO_VERSION} required"; exit 1; }
+          go vet ./...
+          go test ./...
+
+      - name: Fetch SDL3 (pinned commit)
+        run: android/scripts/fetch-sdl.sh
+
+      - name: Build Go library for Android arm64 (CGO, c-shared)
+        env:
+          TAKT_GO_VERSION: go${{ env.GO_VERSION }}
+        run: android/scripts/build-go.sh arm64-v8a
+
+      - name: Build SDL3 + native bridge and assemble debug APK
+        working-directory: android
+        run: gradle --no-daemon --stacktrace assembleDebug -PtaktAbi=arm64-v8a
+
+      - name: Verify APK contents
+        run: android/scripts/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk arm64-v8a
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: taktchase-probe-debug-arm64-v8a
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "### Android feasibility prototype (stage 2)"
+            echo
+            echo "- Debug APK built and **statically verified** (arm64-v8a libs, JNI/Go symbols, 16 KB alignment)."
+            echo "- It has **not** been run by this job. Install it on a device and check \`adb logcat -s TaktChase GoProbe\`"
+            echo "  for \`TAKT_PROBE go_selftest=PASS\`, \`java_jni_selftest=PASS\` and \`scene_check=PASS\`."
+            echo "- This is a prototype, not the ported game."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-build-diagnostics
+          path: |
+            android/app/.cxx/**/*.log
+            android/app/build/reports/**
+            android/go/build/**/*.h
+          if-no-files-found: ignore
+          retention-days: 7
+
+  gomobile-experiment:
+    name: Experiment B - gomobile bind (informational)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true   # evidence only; must never block or fake the APK result
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: Install NDK
+        run: |
+          set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;${PLATFORM}" "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: gomobile bind android/arm64
+        env:
+          OUT_DIR: ${{ runner.temp }}/gomobile-out
+        run: |
+          set -o pipefail
+          android/scripts/gomobile-probe.sh 2>&1 | tee "${RUNNER_TEMP}/gomobile.log"
+          status=${PIPESTATUS[0]}
+          {
+            echo "### Experiment B: gomobile bind (android/arm64)"
+            echo
+            if [ "$status" -eq 0 ]; then echo "Result: **bind succeeded**"; else echo "Result: **bind failed** (exit $status)"; fi
+            echo
+            echo '```'
+            tail -n 40 "${RUNNER_TEMP}/gomobile.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+  emulator-smoke:
+    name: Optional x86_64 emulator smoke test (diagnostic)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_emulator }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    continue-on-error: true   # the deliverable is arm64-only; this APK is a separate x86_64 build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+        with:
+          gradle-version: '8.12'
+          validate-wrappers: false   # o build usa o Gradle instalado, não o wrapper
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: Install SDK components
+        run: |
+          set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;${PLATFORM}" "build-tools;${BUILD_TOOLS_VERSION}" \
+            "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: Build x86_64 diagnostic APK
+        env:
+          TAKT_GO_VERSION: go${{ env.GO_VERSION }}
+        run: |
+          set -euo pipefail
+          android/scripts/fetch-sdl.sh
+          android/scripts/build-go.sh x86_64
+          (cd android && gradle --no-daemon assembleDebug -PtaktAbi=x86_64)
+          android/scripts/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk x86_64
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: android/scripts/emulator-smoke.sh android/app/build/outputs/apk/debug/app-debug.apk logcat-smoke.txt
+      - name: Upload logcat
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: emulator-smoke-logcat
+          path: logcat-smoke.txt
+          if-no-files-found: ignore
