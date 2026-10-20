@@ -41,7 +41,7 @@ sleep 4
 adb shell am start -n "$act"
 sleep 6
 collect
-for marker in "event=DID_ENTER_BACKGROUND" "event=DID_ENTER_FOREGROUND"; do
+for marker in "event=DID_ENTER_BACKGROUND" "event=DID_ENTER_FOREGROUND" "TAKT_PROBE resumed_render=PASS"; do
     grep -qF "$marker" "$log" || fail "lifecycle marker not found: $marker"
 done
 grep -q "FATAL EXCEPTION" "$log" && fail "crash after background/foreground"
