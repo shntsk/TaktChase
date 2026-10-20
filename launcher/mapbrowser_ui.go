@@ -494,7 +494,7 @@ func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 
 	// star bar
 	imgui.SetCursorPos(vec2(ip, y))
-	b.drawBar(max(m.Stars, 0)/10, iw, 6, dc)
+	b.drawBar(float32(max(m.Stars, 0)/10), iw, 6, dc)
 
 	imgui.PushFont(Font, 14)
 	setCursorX(ip)
