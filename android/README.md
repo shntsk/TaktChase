@@ -99,10 +99,11 @@ fallback to test before concluding the approach is unworkable.
 | `minSdk` / `targetSdk` / ABI | 24 / 35 / `arm64-v8a` |
 | GitHub Actions | pinned to full commit SHAs in the workflow |
 
-Known gap: `gradle-wrapper.properties` (copied from SDL) has no
-`distributionSha256Sum`; the workflow runs `gradle/actions/wrapper-validation`
-to check the wrapper JAR, but the downloaded Gradle distribution is not
-checksum-pinned.
+The copied Gradle wrapper JAR is not in Gradle's published checksum list. CI
+recognizes only the recorded legacy SHA-256, restores the official Gradle 8.12
+wrapper JAR from a pinned Gradle source commit, verifies its published SHA-256,
+and then runs `gradle/actions/wrapper-validation`. The wrapper properties also
+pin the Gradle 8.12 binary distribution using its official SHA-256 checksum.
 
 ## Building locally
 
