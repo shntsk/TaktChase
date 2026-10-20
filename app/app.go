@@ -439,7 +439,7 @@ func run() {
 
 		log.Println("Creating window...")
 
-		iconName := "taktchasecoin*"
+		iconName := "dansercoin*"
 		if cTime := time.Now(); cTime.Month() == 12 && cTime.Day() >= 6 {
 			iconName += "-s"
 		}
