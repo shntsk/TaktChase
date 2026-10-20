@@ -16,7 +16,7 @@ This is a narrow rendering integration fixture, not a complete gameplay claim. I
 
 ## Renderer audit: the bridge boundary and remaining blockers
 
-The native Android Gradle build still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not yet link the root Go game module. The root module now contains both renderer backends behind the `QuadBatch` interface, but the Android backend is not wired into this APK or runtime-tested. The triangle remains only a diagnostic scene.
+The Android APK still uses the SDL native entry point and C/JNI bridge, but the nested Go c-shared module now imports the real root `framework/graphics/batch` package. That builds only the renderer dependency graph reachable from `QuadBatch`, not the entire desktop game or launcher. The diagnostic triangle remains for the SDL/GLES/Go baseline, while a separate deterministic texture is drawn through `QuadBatch` as the renderer checkpoint.
 
 The first source-level refactor creates a renderer seam in the existing game code:
 
@@ -26,13 +26,13 @@ The first source-level refactor creates a renderer seam in the existing game cod
 
 The remaining platform-specific work includes:
 
-- `framework/graphics/buffer/vao.go` uses desktop DSA VAO calls such as `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`.
-- `framework/graphics/buffer/vbo.go` and `ibo.go` use `CreateBuffers`, `NamedBufferData` and `NamedBufferSubData`; indexed instanced drawing calls `DrawElementsInstancedBaseInstance`.
+- `framework/graphics/buffer/vao.go` remains the desktop DSA implementation, using calls such as `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`. The Android batch backend bypasses it and uses GLES VAO calls directly.
+- `framework/graphics/buffer/vbo.go` and `ibo.go` remain desktop implementations using `CreateBuffers`, `NamedBufferData` and `NamedBufferSubData`; indexed instanced drawing calls `DrawElementsInstancedBaseInstance`. The new GLES backend has its own streaming buffers and avoids base-instance drawing.
 - `framework/graphics/texture/texture.go` still uses desktop DSA texture calls including `CreateTextures`, `TextureStorage3D`, `TextureParameteri` and `TextureSubImage3D`. The deterministic Android fixture has a small GLES-owned texture, so it does not prove the existing atlas/resource path is portable.
 - `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and direct program-uniform APIs such as `ProgramUniform1fv`.
 - `QuadBatch` now consumes the new API-only `framework/graphics/textureapi` contract; desktop `texture` types are aliases for source compatibility. Android's full texture atlas and upload system still has no GLES implementation.
 
-The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The new pure-Go `textureapi` contract keeps the batch package from importing the desktop texture implementation on Android. Full gameplay still needs the existing atlas/resource pipeline, the rest of the renderer, assets, gameplay loop and beatmap path ported to Android.
+The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The new pure-Go `textureapi` contract keeps the batch package from importing the desktop texture implementation on Android. The test texture deliberately lives in the Android backend as a deterministic fixture. Full gameplay still needs a GLES implementation of the existing atlas/resource pipeline, the rest of the renderer, assets, gameplay loop and beatmap path ported to Android.
 
 The generated sprite shader test verifies only shader syntax and interface. It doesn't prove the quad batch, its textures, or hit objects can yet render on Android.
 
