@@ -1,171 +1,118 @@
-# TaktChase Android — stage 2: native feasibility prototype
+# TaktChase Android — Stage 3 renderer checkpoint
 
-> **This is not the ported game.** It is a minimal prototype that answers two
-> questions from `ANDROID_AUDIT.md`: *can we build and start an Android app with
-> SDL3 + OpenGL ES?* and *can Go be integrated with SDL3 in a sustainable way?*
-> It does not start the ImGui launcher, gameplay, map import, or audio.
+> **Status: partial renderer work, not a playable Android port.** Stage 2's SDL3/GLES/Go feasibility foundation is retained. Stage 3 adds a runtime compile/link and interface check for the game's real sprite shaders. The Android app still draws the original diagnostic triangle; it does **not** draw a real TaktChase hit object or gameplay scene yet.
 
-## Status of the evidence (read this first)
+## What Stage 3 changes
 
-| Claim | State |
+- CMake derives an Android/GLES shader header directly from `assets/shaders/sprite.vsh` and `assets/shaders/sprite.fsh`. It converts only the first-line `#version 330` directive to `#version 300 es` and adds the fragment shader's required default float precision. The desktop shader files remain untouched and are the source of truth.
+- After SDL creates an OpenGL ES 3.0 context, native code compiles and links both converted shaders and checks that the 11 sprite vertex attributes and the `proj` / `tex` uniforms survive linking. A successful runtime test emits `TAKT_RENDER sprite_shader_compile=PASS`.
+- The x86_64 emulator smoke test now requires this marker in addition to the existing Go, GLES, diagnostic-pixel and lifecycle markers.
+- The emulator smoke job runs automatically on pushes to `android/port-stage3` and fails the workflow if it fails. It can also be enabled manually on `workflow_dispatch` by setting `run_emulator=true`.
+- The ARM64 APK remains the primary build artifact. The x86_64 emulator APK is a separate diagnostic build and does not prove the ARM64 APK works on a physical phone.
+
+This is intentionally a shader compatibility checkpoint, **not** a rendering claim: compilation does not prove the game's batch pipeline, vertex data, texture uploads, blending or a hit object can render through GLES.
+
+## Renderer audit: exact integration blockers
+
+The Android native build graph still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not compile the repository's root Go game module, its gameplay renderer or its rendering packages. The triangle is only the current diagnostic scene.
+
+The first candidate for a real rendering slice is the existing sprite/quad batch. Its sources are not GLES-ready as they stand:
+
+- `framework/graphics/batch/batch.go` creates the real sprite shader and configures a `buffer.VertexArrayObject`.
+- `framework/graphics/buffer/vao.go` uses desktop DSA VAO calls including `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`.
+- `framework/graphics/buffer/vbo.go` and `ibo.go` use `CreateBuffers`, `NamedBufferData` and `NamedBufferSubData`; indexed instanced drawing calls `DrawElementsInstancedBaseInstance`.
+- `framework/graphics/texture/texture.go` uses desktop DSA texture calls including `CreateTextures`, `TextureStorage3D`, `TextureParameteri` and `TextureSubImage3D`.
+- `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and uses direct program-uniform APIs such as `ProgramUniform1fv`.
+- GLSL ES 3.00 supports array textures, so the two sprite shaders can be adapted for syntax/interface validation. This alone does not solve the desktop DSA calls or the batch's base-instance assumption. GLES 3.0 has no drop-in equivalent for the desktop calls above.
+
+A deliberate Android renderer backend/compatibility layer is still required: bind-based buffer and texture allocation/update, GLES vertex-array setup, uniform updates with the program bound, and a correct fallback for base-instance offsets/instancing. It must be isolated from the desktop GL implementation so Windows/Linux remain unchanged. The root Go module and the current desktop GL loader also need an Android-compatible build path before gameplay code can link against it.
+
+That is the current blocker to drawing a genuine playfield element in this stage. The runtime shader check is a useful, source-derived subsystem test, but it does not pretend this backend work is complete.
+
+## Current evidence status
+
+| Check | State |
 |---|---|
-| Go probe passes `go vet`/`go test`; c-shared build exports the C ABI; a C harness loads it and gets `42` | **Verified on a Linux x86_64 host** (Go 1.22.2, not Android) |
-| Native C/JNI sources compile (syntax/type check) against the real SDL 3.4.18 and GLES3 headers | **Verified on host** (`gcc -fsyntax-only`, Android log header stubbed) |
-| Java sources type-check | **Verified against minimal stubs only** (no `android.jar`) |
-| `scripts/verify-apk.sh` accepts a correct package and rejects stray files | **Verified on host** with a synthetic x86_64 package |
-| Workflow YAML and shell scripts are well-formed | **Verified** (actionlint + shellcheck) |
-| Cross-compiling Go with the NDK (`GOOS=android`, c-shared) | **Not yet run** — needs the NDK; first real run is the CI job |
-| SDL3 builds for Android, Gradle `assembleDebug` succeeds, APK is produced | **Not yet run** — needs Android SDK/NDK/Gradle (CI job) |
-| App opens on Android, GLES 3.x context, scene draws, Go is called, logcat output | **Not yet run on any Android device or emulator** |
-| `gomobile bind` works for this probe | **Not yet run** (informational CI job) |
+| Stage 2 source and Android project inspected | Done |
+| Desktop sprite shaders adapted from their existing source files | Implemented in CMake generation; runtime result awaits CI |
+| GLES runtime shader compile/link and shader-interface marker | Implemented; runtime result awaits CI |
+| Existing Go self-test | Retained in the SDL thread and JNI bridge; CI/device result must be read from its run |
+| Existing diagnostic triangle read-back | Retained; it is still only a prototype scene |
+| Emulator startup and background/foreground test | Scheduled automatically for pushes to this branch; not claimed passed until the Actions run reports success |
+| ARM64 APK built and statically verified in Stage 3 | Must be confirmed by this branch's Actions run |
+| Runtime tested on a physical ARM64 phone | **Not verified** |
+| Real TaktChase hit object/playfield rendered on GLES | **Not implemented yet** |
 
-The authoring environment had no Android SDK/NDK and could not reach `go.dev`,
-`dl.google.com`, `maven.google.com` or `services.gradle.org`, so nothing Android-specific
-could be executed there. Treat every "Not yet run" row as unproven until the
-`Android debug (feasibility prototype)` workflow has run and the APK has been
-started on a device.
+Do not report emulator checks as passed if the job was skipped or failed. An x86_64 emulator is not an ARM64 physical device.
 
-## Layout
+## Layout and architecture carried forward from Stage 2
 
 ```
 android/
-  go/                Go module (isolated from the root module): the probe library
-  gomobile-probe/    Go module for experiment B (gomobile bind), run only in CI
-  app/               Gradle module: Activity, JNI/SDL_main sources, CMake
-    jni/src/         taktchase_main.c (SDL3+GLES), go_bridge.c (JNI + Go calls), taktgo_api.h
-    jni/SDL/         SDL3 checkout, fetched at a pinned commit (git-ignored)
-    src/main/jniLibs libtaktgo.so built by scripts/build-go.sh (git-ignored)
-  scripts/           fetch-sdl.sh, build-go.sh, verify-apk.sh, gomobile-probe.sh, emulator-smoke.sh
-  SDL_VERSION        pinned SDL tag + commit
-.github/workflows/android-debug.yml   independent CI workflow
+  go/                isolated Go probe module (not the game module)
+  gomobile-probe/    informational gomobile-bind experiment
+  app/               Gradle app, SDL3 native entry point, JNI/Go bridge
+    jni/src/         SDL_main, JNI bridge, C ABI and CMake
+  scripts/           pinned SDL fetch, Go c-shared build, APK checks and emulator smoke
+  SDL_VERSION        pinned SDL source commit
+.github/workflows/android-debug.yml
+                     ARM64 build and verification plus an x86_64 emulator test
 ```
 
-Nothing under the existing desktop code or `release.yml` was modified. The Go
-probe lives in a nested module (`android/go/go.mod`), so `go build ./...` in the
-repository root does not see it.
+The native bridge crosses into Go only with scalar C types and plain pointers. It intentionally does not expose the desktop `taktchaseMain(bool, []string)` Go signature to JNI. The existing Go probe, SDL startup, GLES 3.0 context creation, pixel read-back and Activity lifecycle checks remain in place.
 
-## Architecture chosen: Go as a C shared library
-
-```
-Java TaktActivity (extends SDLActivity)
-   ├─ loads libSDL3.so, libtaktgo.so (Go), libmain.so
-   ├─ JNI  GoBridge.nativeAdd/nativeDescribe ──┐
-   └─ SDL thread: SDL_main (taktchase_main.c) ─┴─► go_bridge.c ─► libtaktgo.so (C ABI)
-```
-
-Only scalar C types and plain pointers cross the boundary
-(`int32_t TaktProbeAdd(int32_t,int32_t)`, `int64_t TaktProbeSumParallel(int32_t)`,
-`int32_t TaktProbeDescribe(char*,int32_t)`). The desktop
-`taktchaseMain(isLauncher bool, args []string)` is intentionally **not** exposed.
-
-### Options investigated
-
-**A. CGO `-buildmode=c-shared` + C/JNI bridge — chosen.**
-Build: `GOOS=android GOARCH=arm64 CGO_ENABLED=1 CC=<ndk>/aarch64-linux-android24-clang go build -buildmode=c-shared`
-(see `scripts/build-go.sh`). Reasons: SDL3's Android model runs `SDL_main` in
-C on its own thread, so C calling into Go is the natural direction; the C ABI is
-small and explicit; Go can later own the game loop and be driven from C
-(`init`, `frame`, `touch`, `pause`) without going through Java.
-Details handled in the scripts: an explicit `-soname` (otherwise dependents can
-record the build path as `DT_NEEDED`), 16 KB `max-page-size`, API 24 for both
-Go and the app (`minSdk 24`), and a CMake imported target that fails the build
-with a clear message if `libtaktgo.so` is missing.
-Host evidence only so far (see table above).
-
-**B. `gomobile bind` / gobind — not chosen, to be tested in CI.**
-`gomobile bind` produces an AAR with generated Java wrappers around a Go
-package. Expected drawbacks for this project (hypotheses to confirm from the CI
-log, not measured facts): the API is Java-first, so C code on SDL's thread would
-have to reach Go through JNI → Java → Go, and gobind restricts parameter types
-(no arbitrary Go structs/callbacks), which fits poorly with a game loop driven
-from native code; it also adds a second, separate native library to keep in step
-with SDL's. The `gomobile-experiment` job runs `gomobile bind -target=android/arm64`
-on a small gobind-compatible package (`gomobile-probe/`), pinned to
-`golang/mobile@19777044486779222400e9ca16c4306f9c6dbfa9`, and writes the real
-result to the job summary. Its outcome does not gate the APK.
-
-If A fails in CI, the error is the first thing to record here; B is then the
-fallback to test before concluding the approach is unworkable.
-
-## Pinned versions
+## Pinned toolchain
 
 | Component | Version |
 |---|---|
-| SDL3 | `release-3.4.18` (`829a65d769d935c4852f8159e964312c0957260a`) |
-| Go | `1.27.2` (as in `go.mod` / `release.yml`), `GOTOOLCHAIN=local` |
-| Android Gradle Plugin / Gradle | `8.7.3` / `8.12` (from SDL's reference template) |
+| SDL3 | `release-3.4.18`, commit `829a65d769d935c4852f8159e964312c0957260a` |
+| Go | `1.27.2`, `GOTOOLCHAIN=local` |
+| Android Gradle Plugin / Gradle | `8.7.3` / `8.12` |
 | NDK / CMake / build-tools / platform | `28.2.13676358` / `3.22.1` / `35.0.0` / `android-35` |
 | JDK | Temurin 17 |
-| `minSdk` / `targetSdk` / ABI | 24 / 35 / `arm64-v8a` |
-| GitHub Actions | pinned to full commit SHAs in the workflow |
+| `minSdk` / `targetSdk` | 24 / 35 |
+| Primary APK ABI | `arm64-v8a` |
+| Emulator smoke ABI | `x86_64` |
 
-The copied Gradle wrapper JAR is not in Gradle's published checksum list. CI
-recognizes only the recorded legacy SHA-256, restores the official Gradle 8.12
-wrapper JAR from a pinned Gradle source commit, verifies its published SHA-256,
-and then runs `gradle/actions/wrapper-validation`. The wrapper properties also
-pin the Gradle 8.12 binary distribution using its official SHA-256 checksum.
+## Build locally
 
-## Building locally
-
-Requirements: JDK 17, Go 1.27.2, Android SDK with the components above, `ANDROID_HOME`, `ANDROID_NDK_HOME`.
+Requirements: JDK 17, Go 1.27.2, Android SDK components above, `ANDROID_HOME`, and `ANDROID_NDK_HOME`.
 
 ```sh
-android/scripts/fetch-sdl.sh                       # SDL at the pinned commit
-android/scripts/build-go.sh arm64-v8a              # libtaktgo.so -> app/src/main/jniLibs
-(cd android && ./gradlew assembleDebug)            # APK: android/app/build/outputs/apk/debug/app-debug.apk
-android/scripts/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk
-adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-adb logcat -s TaktChase GoProbe
+cd /path/to/TaktChase
+(
+  cd android/go
+  GOTOOLCHAIN=local go vet ./...
+  GOTOOLCHAIN=local go test ./...
+)
+android/scripts/fetch-sdl.sh
+android/scripts/build-go.sh arm64-v8a
+(cd android && gradle --no-daemon --stacktrace assembleDebug -PtaktAbi=arm64-v8a)
+android/scripts/verify-apk.sh android/app/build/outputs/apk/debug/app-debug.apk arm64-v8a
 ```
 
-## What a successful run looks like (logcat)
+CMake uses `android/scripts/generate-gles-sprite-header.py` during the native build to create a generated header under the CMake build directory. Do not hand-edit that generated file. The shader adapter deliberately fails if either desktop shader's expected version directive changes, so a source change forces an explicit review.
 
-Tags `TaktChase` (C/Java) and `GoProbe` (Go). Expected markers:
+To run the emulator smoke test, build a separate x86_64 APK with `android/scripts/build-go.sh x86_64`, assemble with `-PtaktAbi=x86_64`, boot an x86_64 Android emulator, then run:
 
-```
-GoProbe:   Go runtime initialised inside libtaktgo.so: go=go1.27.2 os=android arch=arm64 ...
-TaktChase: TAKT_PROBE sdl_init=ok video_driver=...
-TaktChase: TAKT_PROBE go_selftest=PASS            # C -> Go from the SDL_main thread
-TaktChase: TAKT_PROBE java_jni_selftest=PASS      # Java -> JNI -> Go
-TaktChase: TAKT_PROBE gl_version_string=OpenGL ES 3.x ...
-TaktChase: TAKT_PROBE gles_major_minor=3.x
-TaktChase: TAKT_PROBE scene_check=PASS            # read-back: corner = clear colour, centre = triangle
-TaktChase: TAKT_PROBE heartbeat frames=300
+```sh
+android/scripts/emulator-smoke.sh android/app/build/outputs/apk/debug/app-debug.apk logcat-smoke.txt
 ```
 
-Lifecycle handling: drawing stops on `WILL/DID_ENTER_BACKGROUND` and resumes on
-`DID_ENTER_FOREGROUND`; Activity `onCreate/onPause/onResume/onDestroy` are
-logged. Whether the EGL context/surface survive a background/foreground cycle
-on real drivers is exactly what still needs a device test.
+The script checks startup, Go calls, GLES version, diagnostic pixels, sprite shader compile/link/interface, heartbeat, and survival after background/foreground. Its log is uploaded as a workflow artifact on success or failure.
 
-## CI
+## CI and artifact policy
 
-`.github/workflows/android-debug.yml` (separate from `release.yml`):
+`.github/workflows/android-debug.yml` is independent of the desktop release workflow.
 
-1. `build`: Java 17, Go 1.27.2 (asserted), Android SDK/NDK/CMake → Go vet+tests →
-   fetch SDL → Go c-shared for arm64 → `assembleDebug` → `verify-apk.sh` →
-   upload artifact `taktchase-probe-debug-arm64-v8a`. Any failing step stops the
-   job; no APK is uploaded unless verification passed.
-2. `gomobile-experiment`: experiment B, non-blocking, result in the job summary.
-3. `emulator-smoke` (manual, `run_emulator=true`): builds a **separate x86_64**
-   diagnostic APK and runs `emulator-smoke.sh` on a hosted x86_64 emulator
-   (start-up markers, Go calls, GLES check, background/foreground). It is
-   non-blocking and untested. The arm64 deliverable itself is **not** executed
-   in CI; it needs a real device (or an arm64 emulator host).
+1. **ARM64 build:** pinned JDK/Go/SDK/NDK/Gradle; Go `vet` and tests; fetch pinned SDL3; build Go `c-shared`; run `assembleDebug`; verify APK ABI, native libraries, symbols and ELF metadata; then upload the APK artifact.
+2. **Emulator smoke:** automatically runs for pushes to `android/port-stage3`. It creates a separate x86_64 diagnostic APK and runs the smoke script on a hosted emulator. It is blocking for this branch; a failure must be fixed rather than marked non-blocking. Manual runs can opt in with `run_emulator=true`.
+3. **gomobile experiment:** remains informational and cannot substitute for the selected C/JNI bridge or for the APK/emulator tests.
 
-## Prepared for later stages (nothing done yet)
+Build logs are uploaded on build failure; emulator logcat/native diagnostics are uploaded regardless of the smoke result. The APK is uploaded only after its build and static verification steps pass.
 
-- **Audio:** BASS / BASS FX / BASS Mix are not integrated and no binaries were
-  added. Needed later: Android arm64 builds of the three libraries and a review
-  of the licence — `CREDITS.md` states BASS is commercial and only free for
-  non-commercial use. Availability of Android builds and exact terms must be
-  verified at the vendor before redistribution; an alternative audio backend
-  (e.g. via SDL3 audio) is also an option to evaluate.
-- **libyuv / FFmpeg / ImGui launcher:** untouched; FFmpeg-as-subprocess has no
-  Android equivalent, video/storyboard stays out of scope.
-- **Renderer:** untouched (desktop GL 3.3 core, ~26 `#version 330` shaders,
-  DSA/base-instance usage; see `ANDROID_AUDIT.md` §3.1). The probe's GLES scene
-  only proves context creation, an ES 3.00 shader and one draw call.
-- **Assets/licences:** Redd Glass HD skin and the danser logo have usage
-  restrictions (`CREDITS.md`); none are in the APK. The project is GPLv3; any
-  distributed APK needs source availability and notices.
+## Out of scope
+
+Full renderer migration, actual hit-object drawing, ImGui launcher/song selection, beatmap import/storage, touch gameplay, production audio, BASS binaries and FFmpeg/storyboard integration are still outside the completed scope. Do not redistribute BASS or other third-party binaries without verifying their Android availability and licence. Preserve GPLv3 and third-party notices.
+
+The current branch contains a shader portability checkpoint, not a complete or playable Android game. A real gameplay rendering path and physical-device validation remain future work.
