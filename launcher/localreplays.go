@@ -99,7 +99,7 @@ func (b *mapBrowser) drawLocalRanking(m *beatmap.BeatMap, iw, ip, contentY float
 
 	imgui.SetCursorPos(vec2(ip, contentY+3))
 	imgui.PushFont(Font, 14)
-	textColored("Melhores jogadas neste computador", cMuted)
+	textColored("Best plays on this computer", cMuted)
 	imgui.PopFont()
 
 	if len(entries) == 0 {
@@ -110,11 +110,11 @@ func (b *mapBrowser) drawLocalRanking(m *beatmap.BeatMap, iw, ip, contentY float
 		strokeRound(p, p.Add(vec2(iw, 82)), withAlpha(cText, 0.06), 12, 1)
 		imgui.SetCursorPos(vec2(ip+14, cardY+13))
 		imgui.PushFont(Font, 15)
-		textColored("Nenhuma jogada salva ainda.", cText)
+		textColored("No plays saved yet.", cText)
 		imgui.PopFont()
 		imgui.SetCursorPos(vec2(ip+14, cardY+39))
 		imgui.PushFont(Font, 13)
-		textColored("Jogue este mapa; o replay aparecerá aqui automaticamente.", cMuted)
+		textColored("Play this map and the replay will show up here.", cMuted)
 		imgui.PopFont()
 		imgui.SetCursorPos(vec2(ip, cardY+90))
 		imgui.Dummy(vec2(iw, 1))
@@ -135,13 +135,13 @@ func (b *mapBrowser) drawLocalRanking(m *beatmap.BeatMap, iw, ip, contentY float
 		textColored(fmt.Sprintf("#%d  %s", i+1, b.truncate(replay.username, iw-132, 14)), cText)
 		imgui.PopFont()
 
-		stamp := "data desconhecida"
+		stamp := "unknown date"
 		if !replay.timestamp.IsZero() {
-			stamp = replay.timestamp.Local().Format("02/01/2006 15:04")
+			stamp = replay.timestamp.Local().Format("2006-01-02 15:04")
 		}
 		imgui.SetCursorPos(vec2(ip+10, y+31))
 		imgui.PushFont(Font, 12)
-		textColored(fmt.Sprintf("%s  •  %d combo  •  %d misses  •  %s  •  %s", replayScore(replay.score), replay.maxCombo, replay.countMiss, stamp, replay.mods), cMuted)
+		textColored(fmt.Sprintf("%s  •  %dx combo  •  %d misses  •  %s  •  %s", replayScore(replay.score), replay.maxCombo, replay.countMiss, stamp, replay.mods), cMuted)
 		imgui.PopFont()
 
 		buttonW := float32(84)
@@ -149,7 +149,7 @@ func (b *mapBrowser) drawLocalRanking(m *beatmap.BeatMap, iw, ip, contentY float
 		pushButtonStyle(cAccent, cAccentHov, cAccentAct, 8)
 		imgui.PushFont(Font, 13)
 		imgui.SetCursorPos(vec2(ip+iw-buttonW-8, buttonY))
-		if imgui.ButtonV("Assistir##localReplay"+fmt.Sprint(i), vec2(buttonW, 29)) {
+		if imgui.ButtonV("Watch##localReplay"+fmt.Sprint(i), vec2(buttonW, 29)) {
 			b.l.trySelectReplayFromPath(replay.path)
 			if b.l.bld.replayPath == replay.path && b.l.canStart() {
 				launcherConfig.CurrentPMode = Watch

@@ -16,19 +16,19 @@ import (
 // ---------------------------------------------------------------- theme
 
 var (
-	cPanel     = vec4(0.09, 0.09, 0.10, 0.93)
-	cCard      = vec4(0.13, 0.13, 0.14, 0.92)
-	cCardHover = vec4(0.17, 0.17, 0.19, 0.95)
-	cCardSel   = vec4(0.19, 0.19, 0.21, 0.98)
-	cDiffRow   = vec4(0.11, 0.11, 0.12, 0.92)
-	cField     = vec4(0.11, 0.11, 0.12, 0.95)
-	cFieldHov  = vec4(0.16, 0.16, 0.18, 0.95)
-	cBtn       = vec4(0.17, 0.17, 0.19, 1)
-	cBtnHov    = vec4(0.23, 0.23, 0.26, 1)
-	cBtnAct    = vec4(0.28, 0.28, 0.31, 1)
-	cAccent    = vec4(0.22, 0.78, 0.84, 1)
-	cAccentHov = vec4(0.35, 0.86, 0.90, 1)
-	cAccentAct = vec4(0.12, 0.66, 0.74, 1)
+	cPanel     = vec4(0.07, 0.065, 0.095, 0.90)
+	cCard      = vec4(0.115, 0.105, 0.150, 0.90)
+	cCardHover = vec4(0.160, 0.145, 0.205, 0.95)
+	cCardSel   = vec4(0.205, 0.165, 0.250, 0.98)
+	cDiffRow   = vec4(0.095, 0.088, 0.125, 0.90)
+	cField     = vec4(0.095, 0.088, 0.125, 0.95)
+	cFieldHov  = vec4(0.150, 0.135, 0.195, 0.95)
+	cBtn       = vec4(0.155, 0.140, 0.205, 1)
+	cBtnHov    = vec4(0.215, 0.190, 0.280, 1)
+	cBtnAct    = vec4(0.270, 0.230, 0.345, 1)
+	cAccent    = vec4(1.00, 0.40, 0.67, 1)
+	cAccentHov = vec4(1.00, 0.54, 0.77, 1)
+	cAccentAct = vec4(0.84, 0.28, 0.55, 1)
 	cText      = vec4(1, 1, 1, 1)
 	cMuted     = vec4(0.64, 0.64, 0.68, 1)
 	cDim       = vec4(0.50, 0.50, 0.54, 1)
@@ -36,6 +36,82 @@ var (
 	cInk       = vec4(0.05, 0.07, 0.08, 1)
 	cClear     = vec4(0, 0, 0, 0)
 )
+
+// Font Awesome glyphs used by the launcher UI.
+const (
+	iconGear     = "\uF013"
+	iconSliders  = "\uF1DE"
+	iconGauge    = "\uF625"
+	iconClock    = "\uF017"
+	iconLayers   = "\uF5FD"
+	iconShuffle  = "\uF074"
+	iconPlay     = "\uF04B"
+	iconStop     = "\uF04D"
+	iconGlobe    = "\uF0AC"
+	iconHome     = "\uF015"
+	iconFlag     = "\uF024"
+	iconUsers    = "\uF500"
+	iconTrophy   = "\uF091"
+	iconInfo     = "\uF05A"
+	iconEye      = "\uF06E"
+	iconSearch   = "\uF002"
+	iconCircle   = "\uF111"
+	iconFolder   = "\uF07C"
+)
+
+// overlayIconLabel draws a Font Awesome glyph followed by a label, centred inside the rectangle of a button that
+// was just submitted at pos (window coordinates). Both parts are plain text items, so the button keeps its own hit testing.
+func overlayIconLabel(pos, size imgui.Vec2, icon, label string, iconFs, textFs float32, c imgui.Vec4) {
+	imgui.PushFont(FontAw, iconFs)
+	iw := textWidth(icon)
+	ih := imgui.TextLineHeight()
+	imgui.PopFont()
+
+	imgui.PushFont(Font, textFs)
+	tw := textWidth(label)
+	th := imgui.TextLineHeight()
+	imgui.PopFont()
+
+	gap := float32(0)
+	if icon != "" && label != "" {
+		gap = 9
+	}
+
+	if icon == "" {
+		iw = 0
+	}
+
+	x := pos.X + (size.X-(iw+gap+tw))/2
+
+	if icon != "" {
+		imgui.PushFont(FontAw, iconFs)
+		imgui.SetCursorPos(vec2(x, pos.Y+(size.Y-ih)/2))
+		textColored(icon, c)
+		imgui.PopFont()
+	}
+
+	if label != "" {
+		imgui.PushFont(Font, textFs)
+		imgui.SetCursorPos(vec2(x+iw+gap, pos.Y+(size.Y-th)/2))
+		textColored(label, c)
+		imgui.PopFont()
+	}
+}
+
+// overlayIconLeft draws icon + label left aligned inside a rectangle starting at pos (used for list rows).
+func overlayIconLeft(pos imgui.Vec2, height, padX float32, icon, label string, iconFs, textFs float32, c imgui.Vec4) {
+	imgui.PushFont(FontAw, iconFs)
+	ih := imgui.TextLineHeight()
+	imgui.SetCursorPos(vec2(pos.X+padX, pos.Y+(height-ih)/2))
+	textColored(icon, c)
+	imgui.PopFont()
+
+	imgui.PushFont(Font, textFs)
+	th := imgui.TextLineHeight()
+	imgui.SetCursorPos(vec2(pos.X+padX+30, pos.Y+(height-th)/2))
+	textColored(label, c)
+	imgui.PopFont()
+}
 
 func scaleCol(c imgui.Vec4, f float32) imgui.Vec4 {
 	return vec4(c.X*f, c.Y*f, c.Z*f, c.W)
@@ -212,11 +288,11 @@ func (b *mapBrowser) drawHeader(W, cfgW float32) {
 
 	switch {
 	case len(b.sel.beatmaps) == 0:
-		info = "nenhum mapa"
+		info = "no maps"
 	case len(b.filters) > 0 || len(b.terms) > 0:
-		info = fmt.Sprintf("%d de %d conjuntos, %d dificuldades", len(b.sets), b.totalSetsAll, b.totalDiffs)
+		info = fmt.Sprintf("%d of %d sets, %d difficulties", len(b.sets), b.totalSetsAll, b.totalDiffs)
 	default:
-		info = fmt.Sprintf("%d conjuntos, %d dificuldades", len(b.sets), b.totalDiffs)
+		info = fmt.Sprintf("%d sets, %d difficulties", len(b.sets), b.totalDiffs)
 	}
 
 	imgui.SetCursorPos(vec2(24+tw+14, 28))
@@ -226,7 +302,7 @@ func (b *mapBrowser) drawHeader(W, cfgW float32) {
 
 	imgui.SetCursorPos(vec2(24, 58))
 	imgui.AlignTextToFramePadding()
-	imgui.TextUnformatted("Modo:")
+	imgui.TextUnformatted("Mode:")
 	imgui.SameLine()
 	imgui.SetNextItemWidth(clampF(W*0.2, 190, 260))
 
@@ -242,65 +318,65 @@ func (b *mapBrowser) drawFooter(W, H float32) {
 	startY := H - footerH
 	imgui.SetCursorPos(vec2(0, startY))
 	p := imgui.CursorScreenPos()
-	fillRound(p, p.Add(vec2(W, footerH)), vec4(0.055, 0.06, 0.07, 0.98), 0)
+	fillRound(p, p.Add(vec2(W, footerH)), vec4(0.05, 0.045, 0.075, 0.98), 0)
 	fillRound(p, p.Add(vec2(W, 1)), withAlpha(cText, 0.10), 0)
 
 	cur := b.l.bld.currentMap
 	btnH := float32(54)
 	btnY := startY + 12
 	sp := float32(10)
-	speedW, timeW := float32(76), float32(76)
-	modsW, randomW, optionsW := float32(112), float32(132), float32(132)
+	speedW, timeW := float32(112), float32(100)
+	modsW, randomW, optionsW := float32(108), float32(128), float32(126)
 	previewW, linkW, playW := float32(50), float32(50), float32(150)
 	groupW := speedW + timeW + modsW + randomW + optionsW + previewW + linkW + playW + 7*sp
 	x := max(float32(16), (W-groupW)/2)
 
-	pushButtonStyle(cBtn, cBtnHov, cBtnAct, 13)
-	imgui.PushFont(Font, 18)
-	imgui.SetCursorPos(vec2(x, btnY))
-	if imgui.ButtonV("Speed##footerSpeed", vec2(speedW, btnH)) {
+	pushButtonStyle(cBtn, cBtnHov, cBtnAct, 14)
+
+	footBtn := func(id, icon, label string, w float32, disabled bool) bool {
+		if disabled {
+			imgui.BeginDisabled()
+		}
+
+		imgui.SetCursorPos(vec2(x, btnY))
+
+		clicked := imgui.ButtonV("##"+id, vec2(w, btnH))
+
+		overlayIconLabel(vec2(x, btnY), vec2(w, btnH), icon, label, 17, 18, cText)
+
+		if disabled {
+			imgui.EndDisabled()
+		}
+
+		x += w + sp
+
+		return clicked
+	}
+
+	if footBtn("footerSpeed", iconGauge, "Speed", speedW, false) {
 		b.l.openSpeedPopup()
 	}
-	x += speedW + sp
-	if cur == nil {
-		imgui.BeginDisabled()
-	}
-	imgui.SetCursorPos(vec2(x, btnY))
-	if imgui.ButtonV("Time##footerTime", vec2(timeW, btnH)) {
+
+	if footBtn("footerTime", iconClock, "Time", timeW, cur == nil) {
 		b.l.openTimePopup()
 	}
-	if cur == nil {
-		imgui.EndDisabled()
-	}
-	x += timeW + sp
-	imgui.SetCursorPos(vec2(x, btnY))
-	if imgui.ButtonV("\u21c4  Mods", vec2(modsW, btnH)) {
+
+	if footBtn("footerMods", iconLayers, "Mods", modsW, false) {
 		b.l.openModsPopup()
 	}
-	x += modsW + sp
-	imgui.SetCursorPos(vec2(x, btnY))
-	noSets := len(b.sets) == 0
-	if noSets {
-		imgui.BeginDisabled()
-	}
-	if imgui.ButtonV("\u21c6  Aleatório", vec2(randomW, btnH)) {
+
+	if footBtn("footerRandom", iconShuffle, "Random", randomW, len(b.sets) == 0) {
 		b.selectRandom()
 	}
-	if noSets {
-		imgui.EndDisabled()
-	}
-	x += randomW + sp
-	imgui.SetCursorPos(vec2(x, btnY))
-	if imgui.ButtonV("\u2699  Opções", vec2(optionsW, btnH)) {
+
+	if footBtn("footerOptions", iconGear, "Options", optionsW, false) {
 		b.l.openLauncherSettings()
 	}
-	imgui.PopFont()
 
-	x += optionsW + sp
 	playing := cur != nil && b.sel.PreviewedSong != nil && b.sel.prevMap != nil && b.sel.prevMap.Dir == cur.Dir
-	previewIcon := "\u25b6"
+	previewIcon := iconPlay
 	if playing {
-		previewIcon = "\u25a0"
+		previewIcon = iconStop
 	}
 	if cur == nil {
 		imgui.BeginDisabled()
@@ -329,13 +405,13 @@ func (b *mapBrowser) drawFooter(W, H float32) {
 		imgui.EndDisabled()
 	}
 	x += linkW + sp
-	label := "Jogar"
+	label := "Play"
 	if launcherConfig.CurrentMode != Play {
 		switch launcherConfig.CurrentPMode {
 		case Record:
-			label = "Gravar"
+			label = "Record"
 		case Screenshot:
-			label = "Capturar"
+			label = "Screenshot"
 		}
 	}
 	popButtonStyle()
@@ -481,7 +557,7 @@ func (b *mapBrowser) drawLeft(w, h float32) {
 func (b *mapBrowser) drawLeftEmpty(w, h float32) {
 	imgui.PushFont(Font, 24)
 
-	msg := "Nenhum mapa selecionado"
+	msg := "No map selected"
 	imgui.SetCursorPos(vec2((w-textWidth(msg))/2, h*0.32))
 	textColored(msg, cText)
 
@@ -489,7 +565,7 @@ func (b *mapBrowser) drawLeftEmpty(w, h float32) {
 
 	imgui.PushFont(Font, 17)
 
-	sub := "Escolha um mapa na lista à direita"
+	sub := "Pick a map from the list on the right"
 	imgui.SetCursorPos(vec2((w-textWidth(sub))/2, h*0.32+34))
 	textColored(sub, cMuted)
 
@@ -522,7 +598,7 @@ func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 
 	imgui.PushFont(Font, 15)
 	setCursorX(ip)
-	textColored(b.truncate("mapeado por "+m.Creator, iw, 15), cDim)
+	textColored(b.truncate("mapped by "+m.Creator, iw, 15), cDim)
 	imgui.PopFont()
 
 	y = imgui.CursorPosY() + 10
@@ -566,7 +642,7 @@ func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 
 	imgui.PushFont(Font, 14)
 	setCursorX(ip)
-	textColored("classificação de estrelas", cDim)
+	textColored("star rating", cDim)
 	imgui.PopFont()
 
 	y = imgui.CursorPosY() + 8
@@ -605,13 +681,13 @@ func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 
 	imgui.PushFont(Font, 17)
 	imgui.SetCursorPos(vec2(ip, y))
-	imgui.TextUnformatted(b.truncate(fmt.Sprintf("BPM %s     %s     %d objetos", fmtBPM(m.MinBPM, m.MaxBPM), fmtDuration(m.Length), objects), iw, 17))
+	imgui.TextUnformatted(b.truncate(fmt.Sprintf("BPM %s     %s     %d objects", fmtBPM(m.MinBPM, m.MaxBPM), fmtDuration(m.Length), objects), iw, 17))
 
 	imgui.PopFont()
 
 	imgui.PushFont(Font, 15)
 	setCursorX(ip)
-	textColored(b.truncate(fmt.Sprintf("%d círculos    %d sliders    %d spinners", m.Circles, m.Sliders, m.Spinners), iw, 15), cDim)
+	textColored(b.truncate(fmt.Sprintf("%d circles    %d sliders    %d spinners", m.Circles, m.Sliders, m.Spinners), iw, 15), cDim)
 	imgui.PopFont()
 
 	return imgui.CursorPosY()
@@ -620,35 +696,41 @@ func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 // drawInfoTabs mirrors osu!lazer's Details / Ranking switch. Ranking data is
 // intentionally local-only until the project has an online score provider.
 func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32 {
-	const tabH = float32(32)
-	imgui.SetCursorPos(vec2(ip, y))
+	const tabH = float32(36)
 
 	tabs := []struct {
+		icon  string
 		label string
 		value int
 	}{
-		{"Detalhes", 0},
-		{"Ranking", 1},
+		{iconInfo, "Details", 0},
+		{iconTrophy, "Ranking", 1},
 	}
 
+	tabW := float32(122)
+
 	for i, tab := range tabs {
-		if i > 0 {
-			imgui.SameLine()
-		}
+		pos := vec2(ip+float32(i)*(tabW+8), y)
+
 		bg := cCard
+		fg := cMuted
 		if b.infoTab == tab.value {
-			bg = cBtnAct
+			bg = withAlpha(cAccent, 0.22)
+			fg = cText
 		}
-		pushButtonStyle(bg, cBtnHov, cBtnAct, 8)
-		imgui.PushFont(Font, 16)
-		if imgui.ButtonV(tab.label+"##mapInfoTab", vec2(94, tabH)) {
+
+		pushButtonStyle(bg, cBtnHov, cBtnAct, 10)
+		imgui.SetCursorPos(pos)
+
+		if imgui.ButtonV("##mapInfoTab"+strconv.Itoa(i), vec2(tabW, tabH)) {
 			b.infoTab = tab.value
 		}
-		imgui.PopFont()
+
+		overlayIconLabel(pos, vec2(tabW, tabH), tab.icon, tab.label, 14, 16, fg)
 		popButtonStyle()
 	}
 
-	contentY := y + tabH + 9
+	contentY := y + tabH + 10
 	if b.infoTab == 0 {
 		colGap := float32(12)
 		colW := (iw - colGap*2) / 3
@@ -656,12 +738,12 @@ func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32
 			label string
 			value string
 		}{
-			{"Criador", valueOrDash(m.Creator)},
-			{"Fonte", valueOrDash(m.Source)},
-			{"Modo", "osu!standard"},
-			{"Artista", valueOrDash(m.Artist)},
-			{"Enviado", "Data não disponível"},
-			{"ID do mapa", strconv.FormatInt(m.ID, 10)},
+			{"Mapper", valueOrDash(m.Creator)},
+			{"Source", valueOrDash(m.Source)},
+			{"Mode", "osu!standard"},
+			{"Artist", valueOrDash(m.Artist)},
+			{"Submitted", "Not available"},
+			{"Map ID", strconv.FormatInt(m.ID, 10)},
 		}
 
 		imgui.PushFont(Font, 13)
@@ -686,7 +768,7 @@ func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32
 		imgui.PopFont()
 		tags := strings.TrimSpace(m.Tags)
 		if tags == "" {
-			tags = "Nenhuma tag cadastrada"
+			tags = "No tags"
 		}
 		imgui.SetCursorPos(vec2(ip, tagsY+18))
 		imgui.PushFont(Font, 14)
@@ -698,9 +780,9 @@ func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32
 		fillRound(imgui.CursorScreenPos(), imgui.CursorScreenPos().Add(vec2(iw, 52)), cCard, 10)
 		imgui.Dummy(vec2(iw, 52))
 		items := []struct{ title, value string }{
-			{"Taxa de sucesso", "—"},
-			{"Avaliações", "—"},
-			{"Gráfico de avaliações", "Ainda sem dados"},
+			{"Success rate", "—"},
+			{"Ratings", "—"},
+			{"Ratings graph", "No data yet"},
 		}
 		for i, item := range items {
 			x := ip + float32(i)*iw/3 + 10
@@ -718,25 +800,74 @@ func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32
 		return imgui.CursorPosY()
 	}
 
-	// Ranking scope selector. Local is the default, matching the reference.
-	scopes := []string{"Global", "Local", "País", "Amigos"}
-	scopeW := (iw - 3*5) / 4
-	for i, scope := range scopes {
-		if i > 0 {
-			imgui.SameLine()
-		}
-		bg := cCard
-		if b.rankingScope == i {
-			bg = cBtnAct
-		}
-		pushButtonStyle(bg, cBtnHov, cBtnAct, 8)
-		imgui.PushFont(Font, 14)
-		if imgui.ButtonV(scope+"##rankingScope", vec2(scopeW, 30)) {
-			b.rankingScope = i
-		}
-		imgui.PopFont()
-		popButtonStyle()
+	// Ranking scope: a dropdown whose entries carry an icon, instead of a row of text buttons.
+	scopes := []struct {
+		icon  string
+		label string
+	}{
+		{iconGlobe, "Global"},
+		{iconHome, "Local"},
+		{iconFlag, "Country"},
+		{iconUsers, "Friends"},
 	}
+
+	b.rankingScope = int(clampF(float32(b.rankingScope), 0, float32(len(scopes)-1)))
+
+	const (
+		selH   = float32(34)
+		rowH   = float32(34)
+		labelW = float32(64)
+	)
+
+	imgui.PushFont(Font, 15)
+	imgui.SetCursorPos(vec2(ip, contentY+(selH-imgui.TextLineHeight())/2))
+	textColored("Scope", cMuted)
+	imgui.PopFont()
+
+	comboX := ip + labelW
+	comboW := iw - labelW
+	comboPos := vec2(comboX, contentY)
+
+	pushFieldStyle()
+	imgui.PushFont(Font, 16)
+	imgui.SetCursorPos(comboPos)
+	imgui.SetNextItemWidth(comboW)
+
+	// The leading spaces leave room for the icon that is drawn over the preview.
+	if imgui.BeginCombo("##rankingScopeCombo", "        "+scopes[b.rankingScope].label) {
+		y0 := imgui.CursorPos().Y
+		x0 := imgui.CursorPos().X
+		rowW := max(comboW-16, 140)
+
+		for i, sc := range scopes {
+			rowPos := vec2(x0, y0+float32(i)*(rowH+4))
+
+			imgui.SetCursorPos(rowPos)
+
+			if imgui.SelectableBoolV("##scope"+strconv.Itoa(i), b.rankingScope == i, 0, vec2(rowW, rowH)) {
+				b.rankingScope = i
+			}
+
+			col := cText
+			if b.rankingScope == i {
+				col = cAccent
+			}
+
+			overlayIconLeft(rowPos, rowH, 10, sc.icon, sc.label, 15, 16, col)
+		}
+
+		imgui.EndCombo()
+	}
+
+	imgui.PopFont()
+	popFieldStyle()
+
+	imgui.PushFont(FontAw, 15)
+	imgui.SetCursorPos(vec2(comboX+16, contentY+(selH-imgui.TextLineHeight())/2))
+	textColored(scopes[b.rankingScope].icon, cAccent)
+	imgui.PopFont()
+
+	contentY += selH + 12
 
 	// Local is backed by replays created by actual TaktChase plays. The other
 	// scopes stay as explicit placeholders until an online score source exists.
@@ -744,24 +875,24 @@ func (b *mapBrowser) drawInfoTabs(m *beatmap.BeatMap, iw, ip, y float32) float32
 		return b.drawLocalRanking(m, iw, ip, contentY)
 	}
 
-	cardY := contentY + 42
+	cardY := contentY
 	imgui.SetCursorPos(vec2(ip, cardY))
 	cardP := imgui.CursorScreenPos()
 	fillRound(cardP, cardP.Add(vec2(iw, 86)), cCard, 12)
 	strokeRound(cardP, cardP.Add(vec2(iw, 86)), withAlpha(cText, 0.06), 12, 1)
 
-	titles := []string{"Ranking global", "Ranking local", "Ranking do país", "Ranking de amigos"}
+	titles := []string{"Global ranking", "Local ranking", "Country ranking", "Friends ranking"}
 	imgui.SetCursorPos(vec2(ip+14, cardY+12))
 	imgui.PushFont(Font, 16)
 	textColored(titles[b.rankingScope], cText)
 	imgui.PopFont()
 	imgui.SetCursorPos(vec2(ip+14, cardY+39))
 	imgui.PushFont(Font, 14)
-	textColored("Nenhuma pontuação disponível ainda.", cMuted)
+	textColored("No scores available yet.", cMuted)
 	imgui.PopFont()
 	imgui.SetCursorPos(vec2(ip+14, cardY+60))
 	imgui.PushFont(Font, 12)
-	textColored("Estrutura preparada para dados locais e suporte online futuro.", cDim)
+	textColored("Online rankings will show up here once a score provider exists.", cDim)
 	imgui.PopFont()
 	imgui.SetCursorPos(vec2(ip, cardY+92))
 	imgui.Dummy(vec2(iw, 1))
@@ -831,7 +962,7 @@ func (b *mapBrowser) drawRight(w, h float32) {
 	imgui.SetNextItemWidth(searchW)
 
 	prev := b.searchStr
-	imgui.InputTextWithHint("##browsersearch", "Procurar... (ex.: stars>5 bpm>180)", &b.searchStr, imgui.InputTextFlagsNone, nil)
+	imgui.InputTextWithHint("##browsersearch", "Search... (e.g. stars>5 bpm>180)", &b.searchStr, imgui.InputTextFlagsNone, nil)
 	b.searchActive = imgui.IsItemActive()
 
 	if b.searchStr != prev {
@@ -840,13 +971,13 @@ func (b *mapBrowser) drawRight(w, h float32) {
 	}
 
 	if imgui.IsItemHovered() {
-		imgui.SetTooltip("Busca por título, artista, mapper e dificuldade.\nFiltros: stars, bpm, cs, ar, od, hp, length (s), objects\nUse > >= < <= =, por exemplo: stars>5 bpm>=180")
+		imgui.SetTooltip("Search by title, artist, mapper and difficulty.\nFilters: stars, bpm, cs, ar, od, hp, length (s), objects\nUse > >= < <= =, for example: stars>5 bpm>=180")
 	}
 
 	imgui.SameLine()
 	imgui.SetNextItemWidth(sortW)
 
-	if imgui.BeginCombo("##sortby", "Ordenar: "+launcherConfig.SortMapsBy.String()) {
+	if imgui.BeginCombo("##sortby", "Sort: "+launcherConfig.SortMapsBy.String()) {
 		for _, s := range sortMethods {
 			if imgui.SelectableBoolV(s.String(), s == launcherConfig.SortMapsBy, 0, vzero()) && s != launcherConfig.SortMapsBy {
 				launcherConfig.SortMapsBy = s
@@ -881,16 +1012,16 @@ func (b *mapBrowser) drawRight(w, h float32) {
 
 	if imgui.IsItemHovered() {
 		if launcherConfig.SortAscending {
-			imgui.SetTooltip("Crescente")
+			imgui.SetTooltip("Ascending")
 		} else {
-			imgui.SetTooltip("Decrescente")
+			imgui.SetTooltip("Descending")
 		}
 	}
 
 	imgui.SameLine()
 	imgui.SetNextItemWidth(groupW)
 
-	if imgui.BeginCombo("##groupby", "Grupo: "+GroupBy(launcherConfig.GroupMapsBy).String()) {
+	if imgui.BeginCombo("##groupby", "Group: "+GroupBy(launcherConfig.GroupMapsBy).String()) {
 		for _, g := range groupMethods {
 			if imgui.SelectableBoolV(g.String(), g == GroupBy(launcherConfig.GroupMapsBy), 0, vzero()) && g != GroupBy(launcherConfig.GroupMapsBy) {
 				launcherConfig.GroupMapsBy = int(g)
@@ -1118,7 +1249,7 @@ func (b *mapBrowser) drawSetRow(i int, r *bRow, cw float32) {
 
 	imgui.PushFont(Font, 15)
 	imgui.SetCursorPos(vec2(textX, r.y+57))
-	textColored(b.truncate("mapeado por "+first.Creator, cw-textX-14-float32(nDots)*dotStep-8, 15), cDim)
+	textColored(b.truncate("mapped by "+first.Creator, cw-textX-14-float32(nDots)*dotStep-8, 15), cDim)
 	imgui.PopFont()
 
 	if clicked {
@@ -1176,7 +1307,7 @@ func (b *mapBrowser) drawDiffRow(i, j int, m *beatmap.BeatMap, x, y, w float32, 
 
 	objects := m.Circles + m.Sliders + m.Spinners
 
-	details := fmt.Sprintf("CS %s   AR %s   OD %s   HP %s   %d objetos",
+	details := fmt.Sprintf("CS %s   AR %s   OD %s   HP %s   %d objects",
 		fmtStat(m.Diff.GetBaseCS()), fmtStat(m.Diff.GetBaseAR()), fmtStat(m.Diff.GetBaseOD()), fmtStat(m.Diff.GetBaseHP()), objects)
 
 	imgui.PushFont(Font, 14)
@@ -1213,11 +1344,11 @@ func (b *mapBrowser) drawListEmpty(cw, viewH float32) {
 
 	switch {
 	case len(b.sel.beatmaps) == 0:
-		title = "Nenhum mapa encontrado"
-		body = "O TaktChase não encontrou mapas na pasta Songs.\nConfira o diretório nas configurações do perfil\nou solte arquivos .osz nesta janela."
+		title = "No maps found"
+		body = "TaktChase could not find any maps in your Songs folder.\nCheck the directory in Settings\nor drop .osz files on this window."
 	default:
-		title = "Nenhum resultado"
-		body = "Nada corresponde a \"" + b.searchStr + "\".\nTente outra busca ou ajuste os filtros."
+		title = "No results"
+		body = "Nothing matches \"" + b.searchStr + "\".\nTry another search or adjust the filters."
 		clear = true
 	}
 
@@ -1243,9 +1374,9 @@ func (b *mapBrowser) drawListEmpty(cw, viewH float32) {
 
 	y += 14
 
-	label := "Abrir configurações do perfil"
+	label := "Open settings"
 	if clear {
-		label = "Limpar busca"
+		label = "Clear search"
 	}
 
 	imgui.PushFont(Font, 18)

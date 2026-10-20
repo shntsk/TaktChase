@@ -534,6 +534,13 @@ func AddBeatmapColor(data []string) {
 	}
 }
 
+// ResetBeatmapColors forgets the colours of the previously parsed beatmap, so parsing the same map twice does not duplicate them.
+func ResetBeatmapColors() {
+	beatmapColorsI = nil
+	beatmapColors = nil
+	beatmapCustomColors = make(map[Color]color.Color)
+}
+
 func FinishBeatmapColors() {
 	if len(beatmapColorsI) > 0 {
 		sort.SliceStable(beatmapColorsI, func(i, j int) bool {

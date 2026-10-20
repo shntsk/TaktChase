@@ -5,8 +5,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -145,6 +143,11 @@ type Player struct {
 	menuMouseDown     bool
 	menuCursorVisible bool
 	menuError         string
+	menuLastMouseX    float32
+	menuLastMouseY    float32
+	restartRequested  atomic.Bool
+	disposed          atomic.Bool
+	updateDone        chan struct{}
 
 	mProfiler *frame.Counter
 	mStats1   *runtime.MemStats
@@ -557,10 +560,14 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 		return player
 	}
 
+	player.updateDone = make(chan struct{})
+
 	goroutines.RunOS(func() {
+		defer close(player.updateDone)
+
 		var lastTimeNano = qpc.GetNanoTime()
 
-		for !gcontext.ShouldClose() {
+		for !gcontext.ShouldClose() && !player.disposed.Load() {
 			currentTimeNano := qpc.GetNanoTime()
 
 			delta := float64(currentTimeNano-lastTimeNano) / 1000000.0
@@ -1296,25 +1303,30 @@ func (player *Player) HandleMenuKey(name string) bool {
 
 	if name == "ESCAPE" {
 		if player.failMenu.Load() {
+			// Nothing to resume after a fail: ESC simply goes back to the launcher.
 			gcontext.SetShouldClose(true)
 			return true
 		}
+
 		if player.pauseMenu.Load() {
-			player.pauseMenu.Store(false)
-			player.musicPlayer.Resume()
-			player.hideMenuPointer()
+			player.resume()
 			return true
 		}
+
 		if resultOverlay, ok := player.overlay.(*overlays.ScoreOverlay); ok && resultOverlay.HasActiveResultsPanel() {
 			return false
 		}
+
 		if !settings.PLAY {
 			gcontext.SetShouldClose(true)
 			return true
 		}
+
 		player.menuSelected = 0
+		player.menuError = ""
 		player.pauseMenu.Store(true)
 		player.musicPlayer.Pause()
+
 		return true
 	}
 
@@ -1322,10 +1334,7 @@ func (player *Player) HandleMenuKey(name string) bool {
 		return false
 	}
 
-	itemCount := 3
-	if player.failMenu.Load() {
-		itemCount = 2
-	}
+	itemCount := len(player.menuItems())
 
 	switch name {
 	case "UP":
@@ -1339,6 +1348,21 @@ func (player *Player) HandleMenuKey(name string) bool {
 	return true
 }
 
+// menuItems returns the labels of the entry list of the currently open menu.
+func (player *Player) menuItems() []string {
+	if player.failMenu.Load() {
+		return []string{"Retry", "Back to launcher"}
+	}
+
+	return []string{"Resume", "Retry", "Back to launcher"}
+}
+
+func (player *Player) resume() {
+	player.pauseMenu.Store(false)
+	player.musicPlayer.Resume()
+	player.hideMenuPointer()
+}
+
 func (player *Player) activateMenuItem() {
 	if player.failMenu.Load() {
 		switch player.menuSelected {
@@ -1347,14 +1371,13 @@ func (player *Player) activateMenuItem() {
 		case 1:
 			gcontext.SetShouldClose(true)
 		}
+
 		return
 	}
 
 	switch player.menuSelected {
 	case 0:
-		player.pauseMenu.Store(false)
-		player.musicPlayer.Resume()
-		player.hideMenuPointer()
+		player.resume()
 	case 1:
 		player.restartGame()
 	case 2:
@@ -1362,24 +1385,15 @@ func (player *Player) activateMenuItem() {
 	}
 }
 
+// restartGame only raises a flag. The main loop notices it, disposes this player and builds a fresh one inside the
+// same window, so retrying does not have to start a new process (and window) anymore.
 func (player *Player) restartGame() {
-	executable, err := os.Executable()
-	if err != nil {
-		player.menuError = "Não foi possível reiniciar o jogo."
-		log.Println("Failed to locate executable for retry:", err)
-		return
-	}
+	player.restartRequested.Store(true)
+}
 
-	command := exec.Command(executable, os.Args[1:]...)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err := command.Start(); err != nil {
-		player.menuError = "Não foi possível reiniciar o jogo."
-		log.Println("Failed to restart game:", err)
-		return
-	}
-
-	gcontext.SetShouldClose(true)
+// RestartRequested tells if the player asked to be started from the beginning.
+func (player *Player) RestartRequested() bool {
+	return player.restartRequested.Load()
 }
 
 func (player *Player) showMenuPointer() {
@@ -1392,6 +1406,8 @@ func (player *Player) showMenuPointer() {
 	gcontext.SetRawInput(false)
 	gcontext.SetCursorVisible(true)
 	player.menuCursorVisible = true
+
+	player.menuLastMouseX, player.menuLastMouseY = gcontext.GetCursorPosition()
 }
 
 func (player *Player) hideMenuPointer() {
@@ -1404,6 +1420,14 @@ func (player *Player) hideMenuPointer() {
 	gcontext.SetCursorVisible(false)
 	player.menuCursorVisible = false
 }
+
+// Menu palette, kept in sync with the launcher (pink accent on a deep violet base).
+const (
+	menuPanelW = 700.0
+	menuRowW   = 560.0
+	menuRowH   = 64.0
+	menuRowGap = 14.0
+)
 
 func (player *Player) drawGameMenu() {
 	paused := player.pauseMenu.Load()
@@ -1432,66 +1456,117 @@ func (player *Player) drawGameMenu() {
 		batch.DrawUnit(pixel)
 	}
 
-	drawRect(centerX, centerY, player.ScaledWidth, player.ScaledHeight, 0.015, 0.02, 0.035, 0.82)
-	drawRect(centerX, centerY, 650, 430, 0.07, 0.08, 0.11, 0.96)
+	items := player.menuItems()
+
+	panelH := 250.0 + float64(len(items))*(menuRowH+menuRowGap)
+	panelTop := centerY + panelH/2
+
+	// dim the playfield, then the panel with a thin accent line on top
+	drawRect(centerX, centerY, player.ScaledWidth, player.ScaledHeight, 0.02, 0.015, 0.04, 0.78)
+	drawRect(centerX, centerY, menuPanelW+8, panelH+8, 0.00, 0.00, 0.00, 0.35)
+	drawRect(centerX, centerY, menuPanelW, panelH, 0.075, 0.065, 0.105, 0.98)
+	drawRect(centerX, panelTop-3, menuPanelW, 6, 1.0, 0.40, 0.67, 1.0)
 
 	fontFace := font.GetFont("Quicksand Bold")
-	batch.ResetTransform()
-	batch.SetColor(1, 1, 1, 1)
-	title := "PAUSADO"
-	items := []string{"Continuar", "Reiniciar", "Voltar à seleção"}
-	itemY := []float64{centerY + 45, centerY - 45, centerY - 135}
+
+	title := "PAUSED"
+	subtitle := "Take a breather"
 	if failed {
-		title = "FALHOU"
-		items = []string{"Tentar novamente", "Voltar à seleção"}
-		itemY = []float64{centerY + 5, centerY - 85}
+		title = "YOU FAILED"
+		subtitle = "Give it another go"
 	}
 
-	fontFace.DrawOrigin(batch, centerX, centerY+145, vector.Centre, 42, false, title)
-	font.GetFont("SBFont").DrawOrigin(batch, centerX, centerY+105, vector.Centre, 19, false, "Use as setas e Enter ou clique em uma opção")
+	batch.ResetTransform()
+	batch.SetColor(1, 1, 1, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-70, vector.Centre, 44, false, title)
+
+	batch.ResetTransform()
+	batch.SetColor(1.0, 0.40, 0.67, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-112, vector.Centre, 22, false, subtitle)
+
+	batch.ResetTransform()
+	batch.SetColor(0.62, 0.60, 0.70, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-146, vector.Centre, 18, false, player.mapFullName)
 
 	mouseX, mouseY := gcontext.GetCursorPosition()
 	mouseUIX := float64(mouseX) * 1080 / settings.Graphics.GetHeightF()
 	mouseUIY := player.ScaledHeight - float64(mouseY)*1080/settings.Graphics.GetHeightF()
+
+	// The mouse only takes over the selection when it actually moves, so arrow keys keep working
+	// while the pointer rests on top of an entry.
+	mouseMoved := mouseX != player.menuLastMouseX || mouseY != player.menuLastMouseY
+	player.menuLastMouseX, player.menuLastMouseY = mouseX, mouseY
+
 	mouseDown := gcontext.GetLeftClick()
 	clicked := mouseDown && !player.menuMouseDown
 	player.menuMouseDown = mouseDown
 
+	firstY := panelTop - 215
+
+	activate := -1
+
 	for i, label := range items {
-		y := itemY[i]
-		hovered := mouseUIX >= centerX-260 && mouseUIX <= centerX+260 && mouseUIY >= y-29 && mouseUIY <= y+29
-		if hovered {
+		y := firstY - float64(i)*(menuRowH+menuRowGap)
+
+		hovered := mouseUIX >= centerX-menuRowW/2 && mouseUIX <= centerX+menuRowW/2 && mouseUIY >= y-menuRowH/2 && mouseUIY <= y+menuRowH/2
+
+		if hovered && mouseMoved {
 			player.menuSelected = i
 		}
-		if i == player.menuSelected {
-			drawRect(centerX, y, 520, 58, 0.88, 0.16, 0.58, 0.98)
+
+		selected := i == player.menuSelected
+
+		if selected {
+			drawRect(centerX, y, menuRowW, menuRowH, 1.0, 0.40, 0.67, 1.0)
+			drawRect(centerX-menuRowW/2+5, y, 10, menuRowH, 1.0, 1.0, 1.0, 0.85)
 		} else {
-			drawRect(centerX, y, 520, 58, 0.16, 0.18, 0.23, 0.96)
+			drawRect(centerX, y, menuRowW, menuRowH, 0.145, 0.130, 0.195, 1.0)
 		}
+
 		batch.ResetTransform()
-		batch.SetColor(1, 1, 1, 1)
-		fontFace.DrawOrigin(batch, centerX, y-9, vector.Centre, 24, false, label)
+		if selected {
+			batch.SetColor(0.12, 0.02, 0.07, 1)
+		} else {
+			batch.SetColor(0.92, 0.90, 0.97, 1)
+		}
+		fontFace.DrawOrigin(batch, centerX, y, vector.Centre, 28, false, label)
 
 		if clicked && hovered {
-			player.activateMenuItem()
-			break
+			activate = i
 		}
 	}
 
-	if player.menuError != "" {
-		batch.ResetTransform()
-		batch.SetColor(1, 0.55, 0.55, 1)
-		font.GetFont("SBFont").DrawOrigin(batch, centerX, centerY-195, vector.Centre, 17, false, player.menuError)
-	}
+	batch.ResetTransform()
+	batch.SetColor(0.50, 0.48, 0.58, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-panelH+34, vector.Centre, 17, false, "Up / Down + Enter, or click an entry   |   Esc: "+map[bool]string{true: "back", false: "resume"}[failed])
 
 	batch.ResetTransform()
 	batch.SetColor(1, 1, 1, 1)
 	batch.End()
 	batch.SetCamera(previousCamera)
+
+	// Run the action after the batch is closed: restarting tears this player down on the next main loop pass.
+	if activate >= 0 {
+		player.menuSelected = activate
+		player.activateMenuItem()
+	}
 }
 
 func (player *Player) Show() {}
 
 func (player *Player) Hide() {}
 
-func (player *Player) Dispose() {}
+// Dispose stops the update thread of this player and waits (briefly) for it to finish, which also stops the music.
+func (player *Player) Dispose() {
+	player.disposed.Store(true)
+
+	player.hideMenuPointer()
+
+	if player.updateDone != nil {
+		select {
+		case <-player.updateDone:
+		case <-time.After(1500 * time.Millisecond):
+			log.Println("Timed out while waiting for the update thread to stop")
+		}
+	}
+}

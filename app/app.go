@@ -27,6 +27,7 @@ import (
 	"github.com/shntsk/taktchase/app/discord"
 	"github.com/shntsk/taktchase/app/ffmpeg"
 	"github.com/shntsk/taktchase/app/settings"
+	skinpkg "github.com/shntsk/taktchase/app/skin"
 	"github.com/shntsk/taktchase/app/states"
 	"github.com/shntsk/taktchase/app/utils"
 	"github.com/shntsk/taktchase/build"
@@ -78,6 +79,10 @@ var screenshotTime float64
 var preciseProgress bool
 
 var monitorHz int
+
+// rebuildPlayer throws the current player away and creates a fresh one for the same map inside the already
+// open window/audio/GL context. It backs the in-game "Retry", so no new process or window is needed.
+var rebuildPlayer func()
 
 func run() {
 	defer func() {
@@ -574,18 +579,44 @@ func run() {
 			}
 		}
 
-		if modsNew != nil {
-			beatMap.Diff.SetMods2(modsNew)
-		} else {
-			beatMap.Diff.SetMods(modsParsed)
+		// NewPlayer changes a few start/skip settings, remember the originals so a retry begins exactly like the first run.
+		origStart, origEnd, origSkip := settings.START, settings.END, settings.SKIP
+
+		loadPlayer := func() {
+			if modsNew != nil {
+				beatMap.Diff.SetMods2(modsNew)
+			} else {
+				beatMap.Diff.SetMods(modsParsed)
+			}
+
+			beatmap.ParseTimingPointsAndPauses(beatMap)
+			beatmap.ParseObjects(beatMap, false, true)
+			gcontext.HandleEvents()
+			beatMap.LoadCustomSamples()
+			gcontext.HandleEvents()
+			player = states.NewPlayer(beatMap)
 		}
 
-		beatmap.ParseTimingPointsAndPauses(beatMap)
-		beatmap.ParseObjects(beatMap, false, true)
-		gcontext.HandleEvents()
-		beatMap.LoadCustomSamples()
-		gcontext.HandleEvents()
-		player = states.NewPlayer(beatMap)
+		loadPlayer()
+
+		if !settings.RECORD {
+			rebuildPlayer = func() {
+				log.Println("Restarting the map without reopening the window...")
+
+				if old, ok := player.(*states.Player); ok {
+					player = nil
+
+					old.Dispose()
+				}
+
+				settings.START, settings.END, settings.SKIP = origStart, origEnd, origSkip
+
+				beatMap.ResetForReload()
+				skinpkg.ResetBeatmapColors()
+
+				loadPlayer()
+			}
+		}
 
 		if !settings.RECORD {
 			gcontext.Restore()
@@ -789,6 +820,10 @@ func mainLoopNormal() {
 		gcontext.HandleEvents()
 
 		profiler.EndGroup()
+
+		if p, ok := player.(*states.Player); ok && rebuildPlayer != nil && p.RestartRequested() {
+			rebuildPlayer()
+		}
 
 		pushFrame()
 

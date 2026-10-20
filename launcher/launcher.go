@@ -1368,7 +1368,7 @@ func (l *launcher) drawLowerPanel() {
 	centerTable("dansebutton", w/2.5, func() {
 		imgui.PushFont(Font, 48)
 
-		l.drawStartButton("danse!", vec2(bW, fHwS))
+		l.drawStartButton("Start", vec2(bW, fHwS))
 
 		imgui.PopFont()
 	})
@@ -1379,165 +1379,34 @@ func (l *launcher) drawConfigPanelAt(pos imgui.Vec2, width float32) {
 		l.currentEditor.setTaktChaseRunning(l.taktchaseRunning && launcherConfig.CurrentPMode == Watch)
 	}
 
+	// Two compact icon buttons. The profile selector and the About box are intentionally not part of the header anymore.
+	const gap = float32(8)
+
+	bSize := vec2((width-gap)/2, 40)
+
+	pushButtonStyle(cBtn, cBtnHov, cBtnAct, 12)
+	imgui.PushFont(Font, 17)
+
 	imgui.SetCursorPos(pos)
 
-	if imgui.BeginTableV("rtpanel", 2, imgui.TableFlagsSizingStretchProp, vec2(width, 0), -1) {
-		imgui.TableSetupColumnV("rtpanel1", imgui.TableColumnFlagsWidthStretch, 0, 0)
-		imgui.TableSetupColumnV("rtpanel2", imgui.TableColumnFlagsWidthFixed, 0, 1)
-
-		imgui.TableNextColumn()
-
-		if imgui.ButtonV("Launcher settings", vec2(-1, 0)) {
-			l.openLauncherSettings()
-		}
-
-		imgui.TableNextColumn()
-
-		if imgui.Button("About") {
-			l.openPopup(newPopupF("About", popDynamic, func() {
-				drawAbout(l.coin.Texture.Texture)
-			}))
-		}
-
-		imgui.TableNextColumn()
-
-		imgui.AlignTextToFramePadding()
-		imgui.TextUnformatted("Config:")
-
-		imgui.SameLine()
-
-		imgui.SetNextItemWidth(-1)
-
-		mWidth := imgui.CalcItemWidth() - imgui.CurrentStyle().FramePadding().X*2
-
-		if imgui.BeginComboV("##config", l.bld.config, imgui.ComboFlagsHeightLarge) {
-			for _, s := range l.configList {
-				mWidth = max(mWidth, imgui.CalcTextSizeV(s, false, 0).X+20)
-			}
-
-			imgui.SetNextItemWidth(mWidth)
-
-			focusScroll := searchBox("##configSearch", &l.configSearch)
-
-			if !imgui.IsMouseClickedBool(0) && !imgui.IsMouseClickedBool(1) && !imgui.IsAnyItemActive() && !l.configEditOpened && !l.configScrolling {
-				imgui.SetKeyboardFocusHereV(-1)
-			}
-
-			if imgui.SelectableBool("Create new...") {
-				l.newCloneOpened = true
-				l.configManiMode = New
-			}
-
-			imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 0)
-			imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 0)
-			imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, vzero())
-			imgui.PushStyleColorVec4(imgui.ColFrameBg, imgui.Vec4{X: 0, Y: 0, Z: 0, W: 0})
-
-			searchResults := make([]string, 0, len(l.configList))
-
-			search := strings.ToLower(l.configSearch)
-
-			for _, s := range l.configList {
-				if l.configSearch == "" || strings.Contains(strings.ToLower(s), search) {
-					searchResults = append(searchResults, s)
-				}
-			}
-
-			if len(searchResults) > 0 {
-				sHeight := float32(min(8, len(searchResults)))*imgui.FrameHeightWithSpacing() - imgui.CurrentStyle().ItemSpacing().Y/2
-
-				if imgui.BeginListBoxV("##blistbox", vec2(mWidth, sHeight)) {
-					l.configScrolling = handleDragScroll()
-					focusScroll = focusScroll || imgui.IsWindowAppearing()
-
-					for _, s := range searchResults {
-						if selectableFocus(s, s == l.bld.config, focusScroll) {
-							if s != l.bld.config {
-								l.setConfig(s)
-							}
-						}
-
-						if _, ok := l.cHold[s]; !ok {
-							l.cHold[s] = new(bool)
-						}
-
-						if imgui.IsMouseClickedBool(1) && imgui.IsItemHovered() {
-							*l.cHold[s] = true
-							l.configEditOpened = true
-
-							imgui.SetNextWindowPosV(imgui.MousePos(), imgui.CondAlways, vzero())
-
-							imgui.OpenPopupStr("##context" + s)
-						}
-
-						befHold := *l.cHold[s]
-
-						if imgui.BeginPopupModalV("##context"+s, l.cHold[s], imgui.WindowFlagsNoCollapse|imgui.WindowFlagsNoResize|imgui.WindowFlagsAlwaysAutoResize|imgui.WindowFlagsNoMove|imgui.WindowFlagsNoTitleBar) {
-							if s != "default" {
-								if imgui.SelectableBool("Rename") {
-									l.newCloneOpened = true
-									l.configPrevName = s
-									l.configManiMode = Rename
-								}
-							}
-
-							if imgui.SelectableBool("Clone") {
-								l.newCloneOpened = true
-								l.configPrevName = s
-								l.configManiMode = Clone
-							}
-
-							if s != "default" {
-								if imgui.SelectableBool("Remove") {
-									if showMessage(mQuestion, "Are you sure you want to remove \"%s\" profile?", s) {
-										l.removeConfig(s)
-									}
-								}
-							}
-
-							if (imgui.IsMouseClickedBool(0) || imgui.IsMouseClickedBool(1)) && !imgui.IsWindowHoveredV(imgui.HoveredFlagsRootAndChildWindows|imgui.HoveredFlagsAllowWhenBlockedByActiveItem|imgui.HoveredFlagsAllowWhenBlockedByPopup) {
-								*l.cHold[s] = false
-								//imgui.CloseCurrentPopup()
-							}
-
-							imgui.EndPopup()
-						}
-
-						if befHold && !*l.cHold[s] {
-							l.configEditOpened = false
-						}
-					}
-
-					imgui.EndListBox()
-				}
-			}
-
-			imgui.PopStyleVar()
-			imgui.PopStyleVar()
-			imgui.PopStyleVar()
-			imgui.PopStyleColor()
-
-			imgui.EndCombo()
-		}
-
-		imgui.TableNextColumn()
-
-		dRun := l.taktchaseRunning && launcherConfig.CurrentPMode == Watch
-
-		if dRun {
-			imgui.PushItemFlag(imgui.ItemFlags(imgui.ItemFlagsDisabled), false)
-		}
-
-		if imgui.ButtonV("Edit", vec2(-1, 0)) {
-			l.openCurrentSettingsEditor()
-		}
-
-		if dRun {
-			imgui.PopItemFlag()
-		}
-
-		imgui.EndTable()
+	if imgui.ButtonV("##launcherSettings", bSize) {
+		l.openLauncherSettings()
 	}
+
+	overlayIconLabel(pos, bSize, "\uF1DE", "Launcher settings", 15, 17, cText)
+
+	pos2 := vec2(pos.X+bSize.X+gap, pos.Y)
+
+	imgui.SetCursorPos(pos2)
+
+	if imgui.ButtonV("##gameSettings", bSize) {
+		l.openCurrentSettingsEditor()
+	}
+
+	overlayIconLabel(pos2, bSize, "\uF013", "Settings", 15, 17, cText)
+
+	imgui.PopFont()
+	popButtonStyle()
 
 	if l.newCloneOpened {
 		popupSmall("Clone/new box", &l.newCloneOpened, true, 0, 0, func() {
@@ -1603,7 +1472,7 @@ func (l *launcher) drawConfigPanelAt(pos imgui.Vec2, width float32) {
 func (l *launcher) openLauncherSettings() {
 	wSize := imgui.WindowSize()
 
-	lEditor := newPopupF("About", popCustom, drawLauncherConfig)
+	lEditor := newPopupF("Launcher settings", popCustom, drawLauncherConfig)
 	lEditor.width = wSize.X / 2
 	lEditor.height = wSize.Y * 0.9
 
