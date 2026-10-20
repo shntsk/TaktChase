@@ -2,23 +2,32 @@ package batch
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/shntsk/taktchase/framework/assets"
-	"github.com/shntsk/taktchase/framework/graphics/attribute"
-	"github.com/shntsk/taktchase/framework/graphics/blend"
-	"github.com/shntsk/taktchase/framework/graphics/buffer"
-	"github.com/shntsk/taktchase/framework/graphics/shader"
 	"github.com/shntsk/taktchase/framework/graphics/texture"
 	color2 "github.com/shntsk/taktchase/framework/math/color"
 	"github.com/shntsk/taktchase/framework/math/vector"
 	"github.com/shntsk/taktchase/framework/profiler"
-	"math"
 )
-
 const defaultBatchSize = 2000
 
+type batchTarget struct {
+	data   []float32
+	offset int
+}
+
+// spriteBatchRenderer owns GPU resources and translates a batch into API-specific
+// operations. QuadBatch keeps the game's transforms, ordering and sprite packing.
+type spriteBatchRenderer interface {
+	begin(projection mgl32.Mat4)
+	setProjection(projection mgl32.Mat4)
+	flush(tex texture.Texture, usedFloats, spriteCount, baseOffset int) batchTarget
+	end()
+}
+
 type QuadBatch struct {
-	shader     *shader.RShader
+	renderer   spriteBatchRenderer
 	additive   bool
 	color      color2.Color
 	Projection mgl32.Mat4
@@ -32,7 +41,6 @@ type QuadBatch struct {
 
 	vertexSize    int
 	data          []float32
-	vao           *buffer.VertexArrayObject
 	currentSize   int
 	currentFloats int
 	drawing       bool
@@ -61,75 +69,17 @@ func newQuadBatchSize(maxSprites int, persistent bool) *QuadBatch {
 		panic(fmt.Sprintf("QuadBatch size is too big, maximum quads allowed: 10922, given: %d", maxSprites))
 	}
 
-	vert, err := assets.GetString("assets/shaders/sprite.vsh")
-	if err != nil {
-		panic(err)
-	}
-
-	frag, err := assets.GetString("assets/shaders/sprite.fsh")
-	if err != nil {
-		panic(err)
-	}
-
-	rShader := shader.NewRShader(shader.NewSource(vert, shader.Vertex), shader.NewSource(frag, shader.Fragment))
-
-	vao := buffer.NewVertexArrayObject()
-
-	vao.AddVBO("default", 4, 0, attribute.Format{
-		{Name: "base_pos", Type: attribute.Vec2},
-		{Name: "base_uv", Type: attribute.Vec2},
-	})
-
-	format := attribute.Format{
-		{Name: "in_origin", Type: attribute.Vec2Packed},
-		{Name: "in_scale", Type: attribute.Vec2},
-		{Name: "in_position", Type: attribute.Vec2},
-		{Name: "in_rotation", Type: attribute.Float},
-		{Name: "in_u", Type: attribute.Vec2},
-		{Name: "in_v", Type: attribute.Vec2},
-		{Name: "in_layer", Type: attribute.Float},
-		{Name: "in_color", Type: attribute.ColorPacked},
-		{Name: "in_additive", Type: attribute.Float},
-	}
-
-	if persistent {
-		vao.AddPersistentVBO("quads", maxSprites*100, 1, format)
-	} else {
-		vao.AddMappedVBO("quads", maxSprites, 1, format)
-	}
-
-	vao.SetData("default", 0, []float32{
-		-1, -1, 0, 0,
-		1, -1, 1, 0,
-		1, 1, 1, 1,
-		-1, 1, 0, 1,
-	})
-
-	vao.Attach(rShader)
-
-	ibo := buffer.NewIndexBufferObject(6)
-
-	ibo.SetData(0, []uint16{
-		0, 1, 2, 2, 3, 0,
-	})
-
-	vao.AttachIBO(ibo)
-
-	vertexSize := vao.GetVBOFormat("quads").Size() / 4
-
-	chunk := vao.MapVBO("quads", maxSprites*vertexSize)
-
+	renderer, target, vertexSize := newBatchRenderer(maxSprites, persistent)
 	return &QuadBatch{
-		shader:      rShader,
+		renderer:    renderer,
 		color:       color2.NewL(1),
 		Projection:  mgl32.Ident4(),
 		scale:       vector.NewVec2d(1, 1),
 		subscale:    vector.NewVec2d(1, 1),
 		transform:   mgl32.Ident4(),
 		vertexSize:  vertexSize,
-		data:        chunk.Data,
-		chunkOffset: chunk.Offset,
-		vao:         vao,
+		data:        target.data,
+		chunkOffset: target.offset,
 		maxSprites:  maxSprites,
 	}
 }
@@ -140,15 +90,7 @@ func (batch *QuadBatch) Begin() {
 	}
 
 	batch.drawing = true
-
-	batch.shader.Bind()
-	batch.shader.SetUniform("proj", batch.Projection)
-
-	batch.vao.Bind()
-
-	blend.Push()
-	blend.Enable()
-	blend.SetFunction(blend.One, blend.OneMinusSrcAlpha)
+	batch.renderer.begin(batch.Projection)
 }
 
 func (batch *QuadBatch) bind(texture texture.Texture) {
@@ -168,22 +110,11 @@ func (batch *QuadBatch) Flush() {
 		return
 	}
 
-	if batch.texture.GetLocation() == 0 {
-		batch.texture.Bind(0)
-	}
-
-	batch.shader.SetUniform("tex", int32(batch.texture.GetLocation()))
-
-	batch.vao.UnmapVBO("quads", 0, batch.currentFloats)
-
-	batch.vao.DrawInstanced(batch.chunkOffset/batch.vertexSize, batch.currentSize)
+	next := batch.renderer.flush(batch.texture, batch.currentFloats, batch.currentSize, batch.chunkOffset)
+	batch.data = next.data
+	batch.chunkOffset = next.offset
 
 	profiler.AddStat(profiler.SpritesDrawn, int64(batch.currentSize))
-
-	nextChunk := batch.vao.MapVBO("quads", batch.maxSprites*batch.vertexSize)
-
-	batch.data = nextChunk.Data
-	batch.chunkOffset = nextChunk.Offset
 
 	batch.currentSize = 0
 	batch.currentFloats = 0
@@ -195,14 +126,8 @@ func (batch *QuadBatch) End() {
 	}
 
 	batch.drawing = false
-
 	batch.Flush()
-
-	batch.vao.Unbind()
-
-	batch.shader.Unbind()
-
-	blend.Pop()
+	batch.renderer.end()
 }
 
 func (batch *QuadBatch) SetColor(r, g, b, a float64) {
@@ -401,7 +326,7 @@ func (batch *QuadBatch) SetCamera(camera mgl32.Mat4) {
 
 	batch.Projection = camera
 	if batch.drawing {
-		batch.shader.SetUniform("proj", batch.Projection)
+		batch.renderer.setProjection(batch.Projection)
 	}
 }
 
