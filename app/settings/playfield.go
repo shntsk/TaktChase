@@ -16,7 +16,7 @@ func initPlayfield() *playfield {
 		LeadInHold:                   2,
 		FadeOutTime:                  5,
 		SeizureWarning: &seizure{
-			Enabled:  true,
+			Enabled:  false,
 			Duration: 5,
 		},
 		Background: &background{
@@ -29,7 +29,7 @@ func initPlayfield() *playfield {
 				Breaks: 0.5,
 			},
 			Parallax: &parallax{
-				Enabled: true,
+				Enabled: false,
 				Amount:  0.1,
 				Speed:   0.5,
 			},
@@ -52,7 +52,7 @@ func initPlayfield() *playfield {
 			},
 		},
 		Logo: &logo{
-			Enabled:      true,
+			Enabled:      false,
 			DrawSpectrum: false,
 			Dim: &dim{
 				Intro:  0,

@@ -28,6 +28,7 @@ type PlayerController struct {
 	counter  float64
 
 	relaxController *input.RelaxInputProcessor
+	aimAssist       *input.AimAssistProcessor
 	mouseController schedulers.Scheduler
 	firstTime       bool
 	position        vector.Vector2f
@@ -61,6 +62,14 @@ func (controller *PlayerController) InitCursors() {
 	}
 
 	gcontext.SetCursorVisible(false)
+
+	controller.aimAssist = input.NewAimAssistProcessor(controller.ruleset, controller.cursors[0], func() float64 {
+		if !settings.Input.AimAssist {
+			return 0
+		}
+
+		return settings.Input.AimAssistStrength
+	})
 
 	if controller.bMap.Diff.CheckModActive(difficulty.Relax2) {
 		controller.mouseController = schedulers.NewGenericScheduler(movers.NewLinearMoverSimple, 0, 0)
@@ -111,6 +120,9 @@ func (controller *PlayerController) Update(time float64, delta float64) {
 		}
 
 		controller.cursors[0].SetScreenPos(controller.position)
+
+		// Only affects hit detection, the displayed cursor stays at the real position
+		controller.aimAssist.Update(time)
 	} else {
 		controller.mouseController.Update(time)
 	}

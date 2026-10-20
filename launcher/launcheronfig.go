@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/shntsk/taktchase/framework/env"
 	"github.com/shntsk/taktchase/framework/files"
-	"github.com/shntsk/taktchase/framework/math/mutils"
 	"io"
 	"io/fs"
 	"os"
@@ -26,7 +25,7 @@ var launcherConfig = &launcherConf{
 	SkipMapUpdate:    false,
 	AutoRefreshDB:    false,
 	ShowJSONPaths:    false,
-	CurrentMode:      CursorDance,
+	CurrentMode:      Play,
 	CurrentPMode:     Watch,
 }
 
@@ -87,8 +86,12 @@ func loadLauncherConfig() {
 		launcherConfig.Profile = &def
 	}
 
-	launcherConfig.CurrentMode = mutils.Clamp(launcherConfig.CurrentMode, CursorDance, Play)
-	launcherConfig.CurrentPMode = mutils.Clamp(launcherConfig.CurrentPMode, Watch, Screenshot)
+	// Only osu!standard play and replay watching are available
+	if launcherConfig.CurrentMode != Play && launcherConfig.CurrentMode != Replay {
+		launcherConfig.CurrentMode = Play
+	}
+
+	launcherConfig.CurrentPMode = Watch
 
 	saveLauncherConfig()
 }

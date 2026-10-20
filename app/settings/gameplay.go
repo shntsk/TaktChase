@@ -211,7 +211,7 @@ func initGameplay() *gameplay {
 			AdditionalSpacing: 0,
 		},
 		Boundaries: &boundaries{
-			Enabled:         true,
+			Enabled:         false,
 			BorderThickness: 1,
 			BorderFill:      1,
 			BorderColor: &HSV{

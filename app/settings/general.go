@@ -1,19 +1,29 @@
 package settings
 
 import (
-	"github.com/shntsk/taktchase/framework/env"
+	"log"
+	"os"
 	"path/filepath"
+
+	"github.com/shntsk/taktchase/framework/env"
 )
+
+// ensureDir creates the directory if it doesn't exist yet.
+func ensureDir(dir string) {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Println("Settings: Failed to create directory", dir+":", err)
+	}
+}
 
 var General = initGeneral()
 
 func initGeneral() *general {
-	osuBaseDir := getOsuInstallation()
-
+	// Folders live next to the game (relative paths are resolved against the data dir)
+	// and are created automatically, no osu! installation is looked up.
 	return &general{
-		OsuSongsDir:       filepath.Join(osuBaseDir, "Songs"),
-		OsuSkinsDir:       filepath.Join(osuBaseDir, "Skins"),
-		OsuReplaysDir:     filepath.Join(osuBaseDir, "Replays"),
+		OsuSongsDir:       "Songs",
+		OsuSkinsDir:       "Skins",
+		OsuReplaysDir:     "Replays",
 		DiscordPresenceOn: true,
 		UnpackOszFiles:    true,
 		VerboseImportLogs: false,
@@ -52,6 +62,8 @@ func (g *general) GetSongsDir() string {
 			dir = g.OsuSongsDir
 		}
 
+		ensureDir(dir)
+
 		g.songsDir = &dir
 	}
 
@@ -66,6 +78,8 @@ func (g *general) GetSkinsDir() string {
 			dir = g.OsuSkinsDir
 		}
 
+		ensureDir(dir)
+
 		g.skinsDir = &dir
 	}
 
@@ -79,6 +93,8 @@ func (g *general) GetReplaysDir() string {
 		if filepath.IsAbs(g.OsuReplaysDir) {
 			dir = g.OsuReplaysDir
 		}
+
+		ensureDir(dir)
 
 		g.replaysDir = &dir
 	}

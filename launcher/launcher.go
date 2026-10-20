@@ -34,12 +34,12 @@ import (
 	"github.com/shntsk/taktchase/app/graphics/gui/drawables"
 	"github.com/shntsk/taktchase/app/osuapi"
 	"github.com/shntsk/taktchase/app/settings"
+	appUtils "github.com/shntsk/taktchase/app/utils"
 	"github.com/shntsk/taktchase/app/states/components/common"
 	"github.com/shntsk/taktchase/build"
 	"github.com/shntsk/taktchase/framework/assets"
 	"github.com/shntsk/taktchase/framework/bass"
 	"github.com/shntsk/taktchase/framework/env"
-	"github.com/shntsk/taktchase/framework/files"
 	"github.com/shntsk/taktchase/framework/goroutines"
 	"github.com/shntsk/taktchase/framework/graphics/batch"
 	"github.com/shntsk/taktchase/framework/graphics/viewport"
@@ -80,7 +80,8 @@ func (m Mode) String() string {
 	return ""
 }
 
-var modes = []Mode{CursorDance, TaktChaseReplay, Replay, Knockout, Play}
+// Only playing osu!standard and watching replays are exposed, the other modes are hidden from the UI.
+var modes = []Mode{Play, Replay}
 
 type PMode int
 
@@ -103,7 +104,7 @@ func (m PMode) String() string {
 	return ""
 }
 
-var pModes = []PMode{Watch, Record, Screenshot}
+var pModes = []PMode{Watch}
 
 type ConfigMode int
 
@@ -377,13 +378,7 @@ func (l *launcher) startContext() {
 				return
 			}
 
-			if strings.HasSuffix(event.Names[0], ".osz") {
-				l.loadOSZs(event.Names)
-			} else if len(event.Names) > 1 {
-				l.trySelectReplaysFromPaths(event.Names)
-			} else {
-				l.trySelectReplayFromPath(event.Names[0])
-			}
+			l.openExternalPaths(event.Names)
 		})
 
 		gcontext.RegisterListener(func(_ gcontext.CloseEvent) {
@@ -403,10 +398,8 @@ func (l *launcher) startContext() {
 			}
 		})
 
-		if len(os.Args) > 2 { //won't work in combined mode
-			l.trySelectReplaysFromPaths(os.Args[1:])
-		} else if len(os.Args) > 1 {
-			l.trySelectReplayFromPath(os.Args[1])
+		if len(os.Args) > 1 { //won't work in combined mode
+			l.openExternalPaths(os.Args[1:])
 		} else if launcherConfig.LoadLatestReplay {
 			l.loadLatestReplay()
 		}
@@ -1955,26 +1948,65 @@ func (l *launcher) openPopup(p iPopup) {
 	l.popupStack = append(l.popupStack, p)
 }
 
+// openExternalPaths handles files dropped on the window or passed as arguments (e.g. "Open with"):
+// .osz packs are unpacked and imported, the first replay file (if any) is opened for watching.
+func (l *launcher) openExternalPaths(names []string) {
+	var oszs []string
+	var others []string
+
+	for _, name := range names {
+		if strings.EqualFold(filepath.Ext(name), ".osz") {
+			oszs = append(oszs, name)
+		} else {
+			others = append(others, name)
+		}
+	}
+
+	if len(oszs) > 0 {
+		l.loadOSZs(oszs)
+	}
+
+	if len(others) > 0 {
+		// Knockout is hidden, so only a single replay is opened
+		l.trySelectReplayFromPath(others[0])
+	}
+}
+
+// loadOSZs unpacks the given .osz files straight into the Songs folder (the original files are left untouched)
+// and imports the new maps.
 func (l *launcher) loadOSZs(names []string) {
 	closeWatcher()
 	l.beatmapDirUpdated = false
 
-	reload := false
+	goroutines.Run(func() {
+		songsDir := settings.General.GetSongsDir() // also creates the folder if needed
 
-	for _, name := range names {
-		if strings.HasSuffix(name, ".osz") {
-			fileName := filepath.Base(name)
+		var failures []string
 
-			err := files.MoveFile(name, filepath.Join(settings.General.GetSongsDir(), fileName))
-			if err != nil {
-				showMessage(mError, "Failed to move \"%s\" to Songs folder: %s", name, err)
+		imported := 0
+
+		for _, name := range names {
+			dirName := strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
+			destination := filepath.Join(songsDir, dirName)
+
+			log.Println("Importing", name, "->", destination)
+
+			if _, err := appUtils.Unzip(name, destination); err != nil {
+				failures = append(failures, fmt.Sprintf("%s: %s", filepath.Base(name), err))
 			} else {
-				reload = true
+				imported++
 			}
 		}
-	}
 
-	if reload {
+		if len(failures) > 0 {
+			showMessage(mError, "Failed to import:\n%s", strings.Join(failures, "\n"))
+		}
+
+		if imported == 0 {
+			l.setupWatcher()
+			return
+		}
+
 		l.reloadMaps(func() {
 			if l.selectWindow == nil {
 				l.selectWindow = newSongSelectPopup(l.bld, l.beatmaps)
@@ -1984,9 +2016,7 @@ func (l *launcher) loadOSZs(names []string) {
 				l.selectWindow.selectNewest()
 			}
 		})
-	} else {
-		l.setupWatcher()
-	}
+	})
 }
 
 func (l *launcher) reloadMaps(after func()) {
