@@ -5,9 +5,12 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
@@ -112,8 +115,11 @@ type Player struct {
 	objectsAlpha    *animation.Glider
 	objectContainer *containers.HitObjectContainer
 
-	MapEnd      float64
-	RunningTime float64
+	MapEnd              float64
+	RunningTime         float64
+	resultsWaiting      bool
+	resultsDismissed    bool
+	replaySaveAttempted bool
 
 	startOffset float64
 	lateStart   bool
@@ -130,9 +136,15 @@ type Player struct {
 	failOY           *animation.Glider
 	failRotation     *animation.Glider
 
-	failing bool
-	failAt  float64
-	failed  bool
+	failing           bool
+	failAt            float64
+	failed            bool
+	pauseMenu         atomic.Bool
+	failMenu          atomic.Bool
+	menuSelected      int
+	menuMouseDown     bool
+	menuCursorVisible bool
+	menuError         string
 
 	mProfiler *frame.Counter
 	mStats1   *runtime.MemStats
@@ -275,7 +287,13 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 		player.controller.SetBeatMap(player.bMap)
 		player.controller.InitCursors()
-		player.overlay = overlays.NewScoreOverlay(player.controller.(*dance.PlayerController).GetRuleset(), player.controller.GetCursors()[0])
+		scoreOverlay := overlays.NewScoreOverlay(player.controller.(*dance.PlayerController).GetRuleset(), player.controller.GetCursors()[0])
+		player.overlay = scoreOverlay
+		scoreOverlay.SetResultDismissHandler(func() {
+			player.resultsDismissed = true
+			player.resultsWaiting = false
+			player.MapEnd = player.progressMsF
+		})
 	} else if settings.KNOCKOUT {
 		controller := dance.NewReplayController()
 		player.controller = controller
@@ -284,7 +302,12 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 		player.controller.InitCursors()
 
 		if settings.PLAYERS == 1 {
-			player.overlay = overlays.NewScoreOverlay(player.controller.(*dance.ReplayController).GetRuleset(), player.controller.GetCursors()[0])
+			scoreOverlay := overlays.NewScoreOverlay(player.controller.(*dance.ReplayController).GetRuleset(), player.controller.GetCursors()[0])
+			player.overlay = scoreOverlay
+			scoreOverlay.SetResultDismissHandler(func() {
+				player.resultsDismissed = true
+				player.MapEnd = player.progressMsF
+			})
 		} else {
 			player.overlay = overlays.NewKnockoutOverlay(controller.(*dance.ReplayController))
 		}
@@ -295,6 +318,7 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 	}
 
 	player.lastTime = -1
+	player.resultsWaiting = settings.Gameplay.ShowResultsScreen && player.overlay != nil && !settings.RECORD
 
 	player.objectContainer = containers.NewHitObjectContainer(beatMap)
 
@@ -541,6 +565,12 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 			delta := float64(currentTimeNano-lastTimeNano) / 1000000.0
 
+			if player.pauseMenu.Load() || player.failMenu.Load() {
+				lastTimeNano = currentTimeNano
+				player.updateLimiter.Sync()
+				continue
+			}
+
 			player.profilerU.PutSample(delta)
 
 			musicState := player.musicPlayer.GetState()
@@ -611,6 +641,14 @@ func (player *Player) trySetupFail() {
 				}
 
 				log.Println("Player failed!")
+				player.resultsWaiting = false
+
+				if controller, ok := player.controller.(*dance.PlayerController); ok && !player.replaySaveAttempted {
+					player.replaySaveAttempted = true
+					if err := controller.SaveReplay(); err != nil {
+						log.Println("Failed to save local replay after fail:", err)
+					}
+				}
 
 				sO.Fail(true)
 
@@ -663,6 +701,17 @@ func (player *Player) Update(delta float64) bool {
 	player.updateMain(delta)
 
 	if player.progressMsF >= player.MapEnd {
+		if player.resultsWaiting && !player.resultsDismissed {
+			return false
+		}
+		if settings.PLAY && !player.replaySaveAttempted {
+			if controller, ok := player.controller.(*dance.PlayerController); ok {
+				player.replaySaveAttempted = true
+				if err := controller.SaveReplay(); err != nil {
+					log.Println("Failed to save local replay:", err)
+				}
+			}
+		}
 		player.musicPlayer.Stop()
 		bass.StopLoops()
 
@@ -721,6 +770,10 @@ func (player *Player) updateMain(delta float64) {
 		}
 
 		player.failed = true
+		if !settings.RECORD {
+			player.failMenu.Store(true)
+			player.menuSelected = 0
+		}
 	}
 
 	speedAdjust := mutils.Lerp(1, settings.SPEED, player.speedGlider.GetValue())
@@ -768,6 +821,15 @@ func (player *Player) updateMain(delta float64) {
 
 	if player.overlay != nil && !player.lateStart {
 		player.overlay.Update(player.progressMsF)
+	}
+
+	if !player.replaySaveAttempted && player.progressMsF >= player.mapEndL && settings.PLAY {
+		if controller, ok := player.controller.(*dance.PlayerController); ok {
+			player.replaySaveAttempted = true
+			if err := controller.SaveReplay(); err != nil {
+				log.Println("Failed to save local replay:", err)
+			}
+		}
 	}
 
 	player.updateMusic(delta)
@@ -968,6 +1030,7 @@ func (player *Player) Draw(d float64) {
 
 	player.DrawMain(d)
 	player.drawDebug()
+	player.drawGameMenu()
 
 	profiler.EndGroup()
 }
@@ -1224,6 +1287,207 @@ func (player *Player) traverseGraph(ident int, node *profiler.PNode, draw func(f
 	for _, sNode := range node.Nodes {
 		player.traverseGraph(ident+1, sNode, draw)
 	}
+}
+
+func (player *Player) HandleMenuKey(name string) bool {
+	if settings.RECORD {
+		return false
+	}
+
+	if name == "ESCAPE" {
+		if player.failMenu.Load() {
+			gcontext.SetShouldClose(true)
+			return true
+		}
+		if player.pauseMenu.Load() {
+			player.pauseMenu.Store(false)
+			player.musicPlayer.Resume()
+			player.hideMenuPointer()
+			return true
+		}
+		if resultOverlay, ok := player.overlay.(*overlays.ScoreOverlay); ok && resultOverlay.HasActiveResultsPanel() {
+			return false
+		}
+		if !settings.PLAY {
+			gcontext.SetShouldClose(true)
+			return true
+		}
+		player.menuSelected = 0
+		player.pauseMenu.Store(true)
+		player.musicPlayer.Pause()
+		return true
+	}
+
+	if !player.pauseMenu.Load() && !player.failMenu.Load() {
+		return false
+	}
+
+	itemCount := 3
+	if player.failMenu.Load() {
+		itemCount = 2
+	}
+
+	switch name {
+	case "UP":
+		player.menuSelected = (player.menuSelected - 1 + itemCount) % itemCount
+	case "DOWN":
+		player.menuSelected = (player.menuSelected + 1) % itemCount
+	case "RETURN", "ENTER", "KP_ENTER", "NUMPADENTER":
+		player.activateMenuItem()
+	}
+
+	return true
+}
+
+func (player *Player) activateMenuItem() {
+	if player.failMenu.Load() {
+		switch player.menuSelected {
+		case 0:
+			player.restartGame()
+		case 1:
+			gcontext.SetShouldClose(true)
+		}
+		return
+	}
+
+	switch player.menuSelected {
+	case 0:
+		player.pauseMenu.Store(false)
+		player.musicPlayer.Resume()
+		player.hideMenuPointer()
+	case 1:
+		player.restartGame()
+	case 2:
+		gcontext.SetShouldClose(true)
+	}
+}
+
+func (player *Player) restartGame() {
+	executable, err := os.Executable()
+	if err != nil {
+		player.menuError = "Não foi possível reiniciar o jogo."
+		log.Println("Failed to locate executable for retry:", err)
+		return
+	}
+
+	command := exec.Command(executable, os.Args[1:]...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	if err := command.Start(); err != nil {
+		player.menuError = "Não foi possível reiniciar o jogo."
+		log.Println("Failed to restart game:", err)
+		return
+	}
+
+	gcontext.SetShouldClose(true)
+}
+
+func (player *Player) showMenuPointer() {
+	if player.menuCursorVisible {
+		return
+	}
+	if controller, ok := player.controller.(*dance.PlayerController); ok {
+		controller.ReleaseMouseCapture()
+	}
+	gcontext.SetRawInput(false)
+	gcontext.SetCursorVisible(true)
+	player.menuCursorVisible = true
+}
+
+func (player *Player) hideMenuPointer() {
+	if !player.menuCursorVisible {
+		return
+	}
+	if controller, ok := player.controller.(*dance.PlayerController); ok {
+		controller.ReleaseMouseCapture()
+	}
+	gcontext.SetCursorVisible(false)
+	player.menuCursorVisible = false
+}
+
+func (player *Player) drawGameMenu() {
+	paused := player.pauseMenu.Load()
+	failed := player.failMenu.Load()
+	if !paused && !failed {
+		return
+	}
+
+	player.showMenuPointer()
+
+	batch := player.batch
+	previousCamera := batch.Projection
+	batch.SetCamera(player.uiCamera.GetProjectionView())
+	batch.Begin()
+	batch.ResetTransform()
+
+	pixel := graphics.Pixel.GetRegion()
+	centerX := player.ScaledWidth / 2
+	centerY := player.ScaledHeight / 2
+
+	drawRect := func(x, y, width, height, r, g, b, a float64) {
+		batch.ResetTransform()
+		batch.SetColor(r, g, b, a)
+		batch.SetScale(width/2, height/2)
+		batch.SetTranslation(vector.NewVec2d(x, y))
+		batch.DrawUnit(pixel)
+	}
+
+	drawRect(centerX, centerY, player.ScaledWidth, player.ScaledHeight, 0.015, 0.02, 0.035, 0.82)
+	drawRect(centerX, centerY, 650, 430, 0.07, 0.08, 0.11, 0.96)
+
+	fontFace := font.GetFont("Quicksand Bold")
+	batch.ResetTransform()
+	batch.SetColor(1, 1, 1, 1)
+	title := "PAUSADO"
+	items := []string{"Continuar", "Reiniciar", "Voltar à seleção"}
+	itemY := []float64{centerY + 45, centerY - 45, centerY - 135}
+	if failed {
+		title = "FALHOU"
+		items = []string{"Tentar novamente", "Voltar à seleção"}
+		itemY = []float64{centerY + 5, centerY - 85}
+	}
+
+	fontFace.DrawOrigin(batch, centerX, centerY+145, vector.Centre, 42, false, title)
+	font.GetFont("SBFont").DrawOrigin(batch, centerX, centerY+105, vector.Centre, 19, false, "Use as setas e Enter ou clique em uma opção")
+
+	mouseX, mouseY := gcontext.GetCursorPosition()
+	mouseUIX := float64(mouseX) * 1080 / settings.Graphics.GetHeightF()
+	mouseUIY := player.ScaledHeight - float64(mouseY)*1080/settings.Graphics.GetHeightF()
+	mouseDown := gcontext.GetLeftClick()
+	clicked := mouseDown && !player.menuMouseDown
+	player.menuMouseDown = mouseDown
+
+	for i, label := range items {
+		y := itemY[i]
+		hovered := mouseUIX >= centerX-260 && mouseUIX <= centerX+260 && mouseUIY >= y-29 && mouseUIY <= y+29
+		if hovered {
+			player.menuSelected = i
+		}
+		if i == player.menuSelected {
+			drawRect(centerX, y, 520, 58, 0.88, 0.16, 0.58, 0.98)
+		} else {
+			drawRect(centerX, y, 520, 58, 0.16, 0.18, 0.23, 0.96)
+		}
+		batch.ResetTransform()
+		batch.SetColor(1, 1, 1, 1)
+		fontFace.DrawOrigin(batch, centerX, y-9, vector.Centre, 24, false, label)
+
+		if clicked && hovered {
+			player.activateMenuItem()
+			break
+		}
+	}
+
+	if player.menuError != "" {
+		batch.ResetTransform()
+		batch.SetColor(1, 0.55, 0.55, 1)
+		font.GetFont("SBFont").DrawOrigin(batch, centerX, centerY-195, vector.Centre, 17, false, player.menuError)
+	}
+
+	batch.ResetTransform()
+	batch.SetColor(1, 1, 1, 1)
+	batch.End()
+	batch.SetCamera(previousCamera)
 }
 
 func (player *Player) Show() {}
