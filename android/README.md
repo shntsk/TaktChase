@@ -14,7 +14,7 @@ This is intentionally a shader compatibility checkpoint, **not** a rendering cla
 
 ## Renderer audit: the bridge boundary and remaining blockers
 
-The native Android build still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not yet compile the repository's root Go game module or draw a gameplay element. The triangle remains only a diagnostic scene.
+The native Android Gradle build still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not yet link the root Go game module. The root module now contains both renderer backends behind the `QuadBatch` interface, but the Android backend is not wired into this APK or runtime-tested. The triangle remains only a diagnostic scene.
 
 The first source-level refactor creates a renderer seam in the existing game code:
 
