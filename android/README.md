@@ -99,7 +99,7 @@ To run the emulator smoke test, build a separate x86_64 APK with `android/script
 android/scripts/emulator-smoke.sh android/app/build/outputs/apk/debug/app-debug.apk logcat-smoke.txt
 ```
 
-The script checks startup, Go calls, GLES version, diagnostic pixels, sprite shader compile/link/interface, heartbeat, and survival after background/foreground. Its log is uploaded as a workflow artifact on success or failure.
+The script checks startup, Go calls, GLES version, diagnostic pixels, sprite shader compile/link/interface, heartbeat, and a post-resume pixel read-back that proves a frame was drawn after foreground. Its log is uploaded as a workflow artifact on success or failure.
 
 ## CI and artifact policy
 
