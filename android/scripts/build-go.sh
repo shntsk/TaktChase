@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build the Go probe as an Android shared library (CGO, -buildmode=c-shared).
+# Build the Android C-shared bridge and compile its imported real renderer packages.
 #
 # Usage: ANDROID_NDK_HOME=/path/to/ndk scripts/build-go.sh [abi]
-#   abi: arm64-v8a (default) or x86_64 (emulator smoke test only)
+#   abi: arm64-v8a (default) or x86_64 (emulator smoke test only); renderer fixture enabled
 # Optional: TAKT_GO_VERSION=go1.27.2 makes the script fail on any other Go.
 set -euo pipefail
 
