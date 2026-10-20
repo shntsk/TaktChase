@@ -51,6 +51,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
         with:
           gradle-version: '8.12'
+          validate-wrappers: false   # o build usa o Gradle instalado, não o wrapper
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
@@ -60,6 +61,8 @@ jobs:
       - name: Install Android SDK components (pinned)
         run: |
           set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager --install \
             "platforms;${PLATFORM}" \
@@ -143,6 +146,8 @@ jobs:
       - name: Install NDK
         run: |
           set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager --install "platforms;${PLATFORM}" "ndk;${NDK_VERSION}"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
@@ -179,6 +184,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
         with:
           gradle-version: '8.12'
+          validate-wrappers: false   # o build usa o Gradle instalado, não o wrapper
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -186,6 +192,8 @@ jobs:
       - name: Install SDK components
         run: |
           set -euo pipefail
+          sm="$(command -v sdkmanager || ls "${ANDROID_HOME}"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          export PATH="$(dirname "$sm"):$PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager --install "platforms;${PLATFORM}" "build-tools;${BUILD_TOOLS_VERSION}" \
             "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
