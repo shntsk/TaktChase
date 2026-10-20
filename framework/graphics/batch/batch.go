@@ -10,6 +10,7 @@ import (
 	"github.com/shntsk/taktchase/framework/math/vector"
 	"github.com/shntsk/taktchase/framework/profiler"
 )
+
 const defaultBatchSize = 2000
 
 type batchTarget struct {
