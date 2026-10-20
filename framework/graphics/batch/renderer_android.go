@@ -23,8 +23,8 @@ import (
 	"unsafe"
 
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/shntsk/taktchase/framework/assets"
-	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/graphics/textureapi"
+	"github.com/shntsk/taktchase/framework/math/vector"
 )
 
 const androidSpriteFloatsPerInstance = 13
@@ -64,23 +64,8 @@ func newBatchRenderer(maxSprites int, persistent bool) (spriteBatchRenderer, bat
 		panic("QuadBatch size must be positive")
 	}
 
-	vertexSource, err := assets.GetString("assets/shaders/sprite.vsh")
-	if err != nil {
-		panic(err)
-	}
-	fragmentSource, err := assets.GetString("assets/shaders/sprite.fsh")
-	if err != nil {
-		panic(err)
-	}
-
-	vertexSource, err = adaptDesktopShaderToGLES(vertexSource, false)
-	if err != nil {
-		panic(err)
-	}
-	fragmentSource, err = adaptDesktopShaderToGLES(fragmentSource, true)
-	if err != nil {
-		panic(err)
-	}
+	vertexSource := spriteVertexGLESSource
+	fragmentSource := spriteFragmentGLESSource
 
 	program, err := linkSpriteProgram(vertexSource, fragmentSource)
 	if err != nil {
@@ -178,18 +163,6 @@ func newBatchRenderer(maxSprites int, persistent bool) (spriteBatchRenderer, bat
 	return r, batchTarget{data: make([]float32, maxSprites*androidSpriteFloatsPerInstance)}, androidSpriteFloatsPerInstance
 }
 
-func adaptDesktopShaderToGLES(source string, fragment bool) (string, error) {
-	if !strings.HasPrefix(source, "#version 330\n") {
-		return "", fmt.Errorf("expected desktop '#version 330' shader header")
-	}
-	source = strings.Replace(source, "#version 330", "#version 300 es", 1)
-	if fragment {
-		source = strings.Replace(source, "#version 300 es\n",
-			"#version 300 es\nprecision mediump float;\n", 1)
-	}
-	return source, nil
-}
-
 func linkSpriteProgram(vertexSource, fragmentSource string) (uint32, error) {
 	vs, err := compileGLESShader(C.GL_VERTEX_SHADER, vertexSource)
 	if err != nil {
@@ -282,7 +255,7 @@ func (r *glesBatchRenderer) setProjection(projection mgl32.Mat4) {
 		(*C.GLfloat)(unsafe.Pointer(&projection[0])))
 }
 
-func (r *glesBatchRenderer) flush(tex texture.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget {
+func (r *glesBatchRenderer) flush(tex textureapi.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget {
 	_ = baseOffset // GLES path uploads the current CPU slice at offset zero.
 	if tex == nil || tex.GetID() == 0 {
 		panic("TaktChase GLES batch received an uninitialized texture")
