@@ -210,6 +210,27 @@ static bool scene_selfcheck(int w, int h) {
     return corner_ok && centre_ok;
 }
 
+/* The deterministic circle texture is drawn through TaktChase's real
+ * QuadBatch and GLES backend. The sampled pixel must be the fixture's cyan,
+ * not the diagnostic triangle or clear colour. glReadPixels uses bottom-left
+ * coordinates, as does GLES window-space rendering. */
+static bool quadbatch_fixture_selfcheck(int w, int h) {
+    unsigned char pixel[4] = {0};
+    int x = (int)(w * 0.80f);
+    int y = (int)(h * 0.775f);
+    if (x >= w) x = w - 1;
+    if (y >= h) y = h - 1;
+    glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+    GLenum error = glGetError();
+    bool drawn = error == GL_NO_ERROR && pixel[0] < 100 &&
+                 pixel[1] > 170 && pixel[2] > 210 && pixel[3] > 200;
+    TLOGI("TAKT_RENDER quadbatch_pixel=%u,%u,%u,%u gl_error=0x%x",
+          pixel[0], pixel[1], pixel[2], pixel[3], (unsigned)error);
+    TLOGI("TAKT_RENDER quadbatch_fixture=%s source=QuadBatch.DrawTexture",
+          drawn ? "PASS" : "FAIL");
+    return drawn;
+}
+
 static bool create_gles_context(SDL_Window **out_win, SDL_GLContext *out_ctx) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -289,6 +310,16 @@ int main(int argc, char *argv[]) {
 
     Scene scene;
     scene_init(&scene);
+    bool renderer_ok = scene.ok && takt_renderer_init() != 0;
+    if (!renderer_ok) {
+        TLOGE("TAKT_RENDER quadbatch_init=FAIL");
+        scene_destroy(&scene);
+        SDL_GL_DestroyContext(ctx);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+    TLOGI("TAKT_RENDER quadbatch_init=PASS backend=GLES3 path=QuadBatch");
 
     bool running = true;
     bool active = true;
@@ -329,7 +360,17 @@ int main(int argc, char *argv[]) {
             case SDL_EVENT_DID_ENTER_FOREGROUND:
                 TLOGI("TAKT_PROBE event=DID_ENTER_FOREGROUND (resume drawing)");
                 active = true;
-                check_resume_frame = background_seen;
+                if (background_seen) {
+                    /* Recreate GPU-owned objects after Android may have lost
+                     * the EGL context while the Activity was backgrounded. */
+                    (void)takt_renderer_destroy();
+                    scene_destroy(&scene);
+                    scene_init(&scene);
+                    renderer_ok = scene.ok && takt_renderer_init() != 0;
+                    TLOGI("TAKT_RENDER quadbatch_resume_init=%s",
+                          renderer_ok ? "PASS" : "FAIL");
+                    check_resume_frame = renderer_ok;
+                }
                 break;
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
                 TLOGI("TAKT_PROBE event=PIXEL_SIZE_CHANGED %dx%d", (int)ev.window.data1,
@@ -350,13 +391,19 @@ int main(int argc, char *argv[]) {
         SDL_GetWindowSizeInPixels(window, &w, &h);
         float angle = (float)(SDL_GetTicks() - t0) / 1000.0f;
         scene_draw(&scene, w, h, angle);
+        bool batch_draw_ok = renderer_ok && takt_renderer_draw() != 0;
+        if (!batch_draw_ok) {
+            TLOGE("TAKT_RENDER quadbatch_draw=FAIL");
+            running = false;
+        }
 
         if (check_resume_frame) {
-            /* Verify a real post-resume frame by reading the rendered pixels,
-             * not merely by checking that the Activity process survived. */
+            /* Validate both the diagnostic frame and a real QuadBatch sprite
+             * after the Activity has resumed, not just process survival. */
             bool frame_ok = scene.ok && scene_selfcheck(w, h);
+            bool batch_pixel_ok = batch_draw_ok && quadbatch_fixture_selfcheck(w, h);
             GLenum resume_error = glGetError();
-            bool resumed_ok = frame_ok && resume_error == GL_NO_ERROR;
+            bool resumed_ok = frame_ok && batch_pixel_ok && resume_error == GL_NO_ERROR;
             TLOGI("TAKT_PROBE resumed_render=%s gl_error=0x%x",
                   resumed_ok ? "PASS" : "FAIL", (unsigned)resume_error);
             check_resume_frame = false;
@@ -364,12 +411,15 @@ int main(int argc, char *argv[]) {
         }
 
         if (!checked) {
-            /* Only the first frame is read back; glReadPixels stalls the GPU. */
+            /* Pixel read-back stalls the GPU; perform it only on the first frame. */
             checked = true;
-            bool pass = scene.ok && scene_selfcheck(w, h);
+            bool triangle_ok = scene.ok && scene_selfcheck(w, h);
+            bool batch_pixel_ok = batch_draw_ok && quadbatch_fixture_selfcheck(w, h);
             GLenum err = glGetError();
-            TLOGI("TAKT_PROBE first_frame size=%dx%d gl_error=0x%x scene=%s go=%s", w, h,
-                  (unsigned)err, pass ? "PASS" : "FAIL", go_ok ? "PASS" : "FAIL");
+            bool pass = triangle_ok && batch_pixel_ok && err == GL_NO_ERROR;
+            TLOGI("TAKT_PROBE first_frame size=%dx%d gl_error=0x%x scene=%s go=%s",
+                  w, h, (unsigned)err, pass ? "PASS" : "FAIL", go_ok ? "PASS" : "FAIL");
+            if (!pass) running = false;
         }
 
         SDL_GL_SwapWindow(window);
@@ -380,6 +430,7 @@ int main(int argc, char *argv[]) {
     }
 
     TLOGI("TAKT_PROBE shutdown frames=%llu", (unsigned long long)frames);
+    (void)takt_renderer_destroy();
     scene_destroy(&scene);
     SDL_GL_DestroyContext(ctx);
     SDL_DestroyWindow(window);
