@@ -1,16 +1,18 @@
 # TaktChase Android — Stage 3 renderer checkpoint
 
-> **Status: partial renderer work, not a playable Android port.** Stage 2's SDL3/GLES/Go feasibility foundation is retained. Stage 3 adds a runtime compile/link and interface check for the game's real sprite shaders. The Android app still draws the original diagnostic triangle; it does **not** draw a real TaktChase hit object or gameplay scene yet.
+> **Status: first real renderer code is connected to the GLES smoke app, but this is not a playable Android port.** Stage 2's SDL3/GLES/Go foundation and diagnostic triangle remain. The Android Go c-shared module now imports TaktChase's actual `QuadBatch` package through a desktop/GLES backend interface and exposes explicit C ABI methods. A deterministic circle texture is drawn through `QuadBatch.DrawTexture`; the emulator smoke test checks the resulting GPU pixel. This fixture proves a small renderer path, not a real beatmap hit object.
 
 ## What Stage 3 changes
 
 - CMake derives an Android/GLES shader header directly from `assets/shaders/sprite.vsh` and `assets/shaders/sprite.fsh`. It converts only the first-line `#version 330` directive to `#version 300 es` and adds the fragment shader's required default float precision. The desktop shader files remain untouched and are the source of truth.
 - After SDL creates an OpenGL ES 3.0 context, native code compiles and links both converted shaders and checks that the 11 sprite vertex attributes and the `proj` / `tex` uniforms survive linking. A successful runtime test emits `TAKT_RENDER sprite_shader_compile=PASS`.
-- The x86_64 emulator smoke test now requires this marker in addition to the existing Go, GLES, diagnostic-pixel and lifecycle markers.
+- `framework/graphics/batch/batch.go` now keeps the existing public `QuadBatch` API and CPU-side transform/instance packing while dispatching GPU operations through `spriteBatchRenderer`. The desktop OpenGL backend preserves the existing DSA/base-instance calls; `renderer_android.go` uses GLES 3 calls and uploads each batch at offset zero before `glDrawElementsInstanced`.
+- `android/scripts/build-go.sh` generates a Go shader source from the canonical desktop shader assets and builds the nested c-shared module. The Go module imports the real `QuadBatch` package and exposes `TaktRendererInit/Draw/Destroy` across the existing C ABI/JNI boundary.
+- The C smoke app creates a deterministic 16x16 circular texture and draws it through the real `QuadBatch` and GLES backend. It checks the sampled pixel (`TAKT_RENDER quadbatch_fixture=PASS`) and repeats the pixel check after background/foreground.
 - The emulator smoke job runs automatically on pushes to `android/port-stage3` and fails the workflow if it fails. It can also be enabled manually on `workflow_dispatch` by setting `run_emulator=true`.
 - The ARM64 APK remains the primary build artifact. The x86_64 emulator APK is a separate diagnostic build and does not prove the ARM64 APK works on a physical phone.
 
-This is intentionally a shader compatibility checkpoint, **not** a rendering claim: compilation does not prove the game's batch pipeline, vertex data, texture uploads, blending or a hit object can render through GLES.
+This is a narrow rendering integration fixture, not a complete gameplay claim. It exercises the real sprite shader, batch packing, GLES vertex attributes, instance-buffer upload, instanced draw and a tiny GLES texture implementation. The game-wide texture atlas/resource system, renderer subpackages, beatmap loading and gameplay are still not wired into Android.
 
 ## Renderer audit: the bridge boundary and remaining blockers
 
@@ -26,11 +28,11 @@ The remaining platform-specific work includes:
 
 - `framework/graphics/buffer/vao.go` uses desktop DSA VAO calls such as `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`.
 - `framework/graphics/buffer/vbo.go` and `ibo.go` use `CreateBuffers`, `NamedBufferData` and `NamedBufferSubData`; indexed instanced drawing calls `DrawElementsInstancedBaseInstance`.
-- `framework/graphics/texture/texture.go` uses desktop DSA texture calls including `CreateTextures`, `TextureStorage3D`, `TextureParameteri` and `TextureSubImage3D`.
+- `framework/graphics/texture/texture.go` still uses desktop DSA texture calls including `CreateTextures`, `TextureStorage3D`, `TextureParameteri` and `TextureSubImage3D`. The deterministic Android fixture has a small GLES-owned texture, so it does not prove the existing atlas/resource path is portable.
 - `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and direct program-uniform APIs such as `ProgramUniform1fv`.
-- The Go batch API still imports the existing texture package, whose resource implementation also needs a GLES backend before the root gameplay module can be built for Android.
+- `QuadBatch` now consumes the new API-only `framework/graphics/textureapi` contract; desktop `texture` types are aliases for source compatibility. Android's full texture atlas and upload system still has no GLES implementation.
 
-The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The remaining resource blocker is texture creation/upload: `framework/graphics/texture/texture.go` still calls desktop DSA functions, and the root gameplay module has not yet been connected to the Gradle/SDL/JNI build. Those must be ported before the backend can draw actual game content.
+The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The new pure-Go `textureapi` contract keeps the batch package from importing the desktop texture implementation on Android. Full gameplay still needs the existing atlas/resource pipeline, the rest of the renderer, assets, gameplay loop and beatmap path ported to Android.
 
 The generated sprite shader test verifies only shader syntax and interface. It doesn't prove the quad batch, its textures, or hit objects can yet render on Android.
 
@@ -39,14 +41,15 @@ The generated sprite shader test verifies only shader syntax and interface. It d
 | Check | State |
 |---|---|
 | Stage 2 source and Android project inspected | Done |
-| Desktop sprite shaders adapted from their existing source files | Implemented in CMake generation; runtime result awaits CI |
-| GLES runtime shader compile/link and shader-interface marker | Implemented; runtime result awaits CI |
-| Existing Go self-test | Retained in the SDL thread and JNI bridge; CI/device result must be read from its run |
-| Existing diagnostic triangle read-back | Retained; it is still only a prototype scene |
-| Emulator startup and background/foreground test | Scheduled automatically for pushes to this branch; not claimed passed until the Actions run reports success |
+| Renderer boundary in the root Go module | Implemented: desktop and GLES implementations satisfy `spriteBatchRenderer` |
+| Android C-shared module imports real `QuadBatch` | Implemented in source; cross-build awaits CI |
+| Deterministic texture drawn through `QuadBatch.DrawTexture` | Implemented; emulator pixel assertion awaits CI |
+| Real sprite shaders compiled in GLES context | Implemented; emulator result awaits CI |
+| Go/JNI probe and diagnostic triangle | Retained; result awaits CI |
+| Emulator startup and background/foreground re-render | Scheduled automatically for pushes to this branch; result pending |
 | ARM64 APK built and statically verified in Stage 3 | Must be confirmed by this branch's Actions run |
 | Runtime tested on a physical ARM64 phone | **Not verified** |
-| Real TaktChase hit object/playfield rendered on GLES | **Not implemented yet** |
+| Real beatmap hit object/playfield rendered on GLES | **Not implemented yet** |
 
 Do not report emulator checks as passed if the job was skipped or failed. An x86_64 emulator is not an ARM64 physical device.
 
