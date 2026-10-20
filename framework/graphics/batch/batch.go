@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/shntsk/taktchase/framework/graphics/texture"
+	"github.com/shntsk/taktchase/framework/graphics/textureapi"
 	color2 "github.com/shntsk/taktchase/framework/math/color"
 	"github.com/shntsk/taktchase/framework/math/vector"
 	"github.com/shntsk/taktchase/framework/profiler"
@@ -23,7 +23,7 @@ type batchTarget struct {
 type spriteBatchRenderer interface {
 	begin(projection mgl32.Mat4)
 	setProjection(projection mgl32.Mat4)
-	flush(tex texture.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget
+	flush(tex textureapi.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget
 	end()
 }
 
@@ -38,7 +38,7 @@ type QuadBatch struct {
 	rotation   float64
 
 	transform mgl32.Mat4
-	texture   texture.Texture
+	texture   textureapi.Texture
 
 	vertexSize    int
 	data          []float32
@@ -94,7 +94,7 @@ func (batch *QuadBatch) Begin() {
 	batch.renderer.begin(batch.Projection)
 }
 
-func (batch *QuadBatch) bind(texture texture.Texture) {
+func (batch *QuadBatch) bind(texture textureapi.Texture) {
 	if batch.texture != nil {
 		if batch.texture == texture {
 			return
@@ -188,20 +188,20 @@ func (batch *QuadBatch) SetAdditive(additive bool) {
 	batch.additive = additive
 }
 
-func (batch *QuadBatch) DrawUnit(texture texture.TextureRegion) {
+func (batch *QuadBatch) DrawUnit(texture textureapi.TextureRegion) {
 	batch.drawTextureBase(texture, false)
 }
 
-func (batch *QuadBatch) DrawTexture(texture texture.TextureRegion) {
+func (batch *QuadBatch) DrawTexture(texture textureapi.TextureRegion) {
 	batch.drawTextureBase(texture, true)
 }
 
-func (batch *QuadBatch) drawTextureBase(texture texture.TextureRegion, useTextureSize bool) {
-	if texture.Texture == nil || batch.color.A < 0.001 {
+func (batch *QuadBatch) drawTextureBase(texture textureapi.TextureRegion, useTextureSize bool) {
+	if textureapi.Texture == nil || batch.color.A < 0.001 {
 		return
 	}
 
-	batch.bind(texture.Texture)
+	batch.bind(textureapi.Texture)
 
 	scaleX := float32(batch.scale.X * batch.subscale.X)
 	scaleY := float32(batch.scale.Y * batch.subscale.Y)
@@ -252,12 +252,12 @@ func (batch *QuadBatch) drawTextureBase(texture texture.TextureRegion, useTextur
 	}
 }
 
-func (batch *QuadBatch) DrawStObject(position, origin, scale vector.Vector2d, flipX, flipY bool, rotation float64, color color2.Color, additive bool, texture texture.TextureRegion) {
-	if texture.Texture == nil || color.A*batch.color.A < 0.001 {
+func (batch *QuadBatch) DrawStObject(position, origin, scale vector.Vector2d, flipX, flipY bool, rotation float64, color color2.Color, additive bool, texture textureapi.TextureRegion) {
+	if textureapi.Texture == nil || color.A*batch.color.A < 0.001 {
 		return
 	}
 
-	batch.bind(texture.Texture)
+	batch.bind(textureapi.Texture)
 
 	scaleX := float32(scale.X * float64(texture.Width) / 2 * batch.scale.X * batch.subscale.X)
 	scaleY := float32(scale.Y * float64(texture.Height) / 2 * batch.scale.Y * batch.subscale.Y)
