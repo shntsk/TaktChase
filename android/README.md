@@ -34,7 +34,7 @@ The remaining platform-specific work includes:
 
 The new GLES batch backend uses ordinary GLES buffer allocation/update, vertex attribute setup, bound-program uniforms and offset-zero uploads followed by `glDrawElementsInstanced`; it does not depend on desktop base-instance support. The new pure-Go `textureapi` contract keeps the batch package from importing the desktop texture implementation on Android. The test texture deliberately lives in the Android backend as a deterministic fixture. Full gameplay still needs a GLES implementation of the existing atlas/resource pipeline, the rest of the renderer, assets, gameplay loop and beatmap path ported to Android.
 
-The generated sprite shader test verifies only shader syntax and interface. It doesn't prove the quad batch, its textures, or hit objects can yet render on Android.
+The shader compile/interface test alone does not prove the renderer. The separate deterministic fixture now exercises `QuadBatch.DrawTexture` through the GLES backend and checks a real framebuffer pixel. It still does not prove the existing desktop texture atlas, a beatmap hit object, or a playable gameplay scene works on Android.
 
 ## Current evidence status
 
