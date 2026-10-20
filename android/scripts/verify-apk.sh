@@ -69,10 +69,10 @@ echo "$needed" | grep -q '/' && fail "libmain.so has a path in NEEDED (Android c
 go_dyn="$("$readelf_bin" -d "$work/apk/lib/$abi/libtaktgo.so")"
 echo "$go_dyn" | grep -q 'SONAME.*\[libtaktgo.so\]' || fail "libtaktgo.so has no SONAME libtaktgo.so"
 go_syms="$("$readelf_bin" --dyn-syms -W "$work/apk/lib/$abi/libtaktgo.so")"
-for sym in TaktProbeAdd TaktProbeSumParallel TaktProbeDescribe; do
+for sym in TaktProbeAdd TaktProbeSumParallel TaktProbeDescribe TaktRendererInit TaktRendererDraw TaktRendererDestroy; do
     echo "$go_syms" | grep -qw "$sym" || fail "libtaktgo.so does not export $sym"
 done
-echo "== libtaktgo.so exports: TaktProbeAdd TaktProbeSumParallel TaktProbeDescribe"
+echo "== libtaktgo.so exports: Go probe ABI + TaktRendererInit/Draw/Destroy"
 
 # 5. libmain.so exports SDL_main and the JNI entry points.
 main_syms="$("$readelf_bin" --dyn-syms -W "$work/apk/lib/$abi/libmain.so")"
