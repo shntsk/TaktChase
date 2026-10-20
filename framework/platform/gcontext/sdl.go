@@ -315,8 +315,15 @@ func loadIconsSDL(name string) {
 
 	var toDispose []*texture.Pixmap
 
-	for i, size := range iconSizes {
-		pxMap, _ := assets.GetPixmap("assets/textures/" + strings.Replace(name, "*", strconv.Itoa(size), 1) + ".png")
+	for _, size := range iconSizes {
+		iconPath := "assets/textures/" + strings.Replace(name, "*", strconv.Itoa(size), 1) + ".png"
+
+		pxMap, err := assets.GetPixmap(iconPath)
+		if err != nil {
+			// A missing window icon is cosmetic and must not crash startup
+			log.Println("Failed to load window icon", iconPath+":", err.Error())
+			continue
+		}
 
 		icon, err := sdl.CreateSurfaceFrom(size, size, sdl.PIXELFORMAT_RGBA32, pxMap.Data, size*4)
 
@@ -324,13 +331,17 @@ func loadIconsSDL(name string) {
 			panic(err)
 		}
 
-		if i == 0 {
+		if mainIcon == nil {
 			mainIcon = icon
 		} else if err = mainIcon.AddAlternateImage(icon); err != nil {
 			panic(err)
 		}
 
 		toDispose = append(toDispose, pxMap)
+	}
+
+	if mainIcon == nil {
+		return
 	}
 
 	err := sdlWindow.SetIcon(mainIcon)
