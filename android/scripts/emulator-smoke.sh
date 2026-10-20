@@ -27,6 +27,7 @@ for marker in \
     "TAKT_PROBE java_jni_selftest=PASS" \
     "TAKT_PROBE gles_major_minor=3" \
     "TAKT_PROBE scene_check=PASS" \
+    "TAKT_RENDER sprite_shader_compile=PASS" \
     "TAKT_PROBE heartbeat"; do
     grep -qF "$marker" "$log" || fail "marker not found: $marker"
 done
