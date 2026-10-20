@@ -261,7 +261,7 @@ func (r *glesBatchRenderer) flush(tex textureapi.Texture, data []float32, usedFl
 		panic("TaktChase GLES batch received an uninitialized texture")
 	}
 	if usedFloats <= 0 || spriteCount <= 0 {
-		return batchTarget{data: make([]float32, r.maxSprites*r.vertexSize)}
+		return batchTarget{data: data[:r.maxSprites*r.vertexSize]}
 	}
 
 	C.glActiveTexture(C.GL_TEXTURE0)
