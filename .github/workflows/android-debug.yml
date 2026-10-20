@@ -85,6 +85,20 @@ jobs:
             || { echo "::error::NDK ${NDK_VERSION} not installed correctly"; exit 1; }
           echo "ANDROID_NDK_HOME=${ndk}" >> "$GITHUB_ENV"
 
+      - name: Install desktop GL headers for renderer compile check
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev
+
+      - name: Compile and vet the real desktop QuadBatch backend
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          go vet ./framework/graphics/batch
+          go test ./framework/graphics/batch
+
       - name: Go probe - vet and unit tests
         working-directory: android/go
         env:
