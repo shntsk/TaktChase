@@ -516,6 +516,7 @@ func (overlay *ScoreOverlay) processKey(info *keyInfo, action osu.ButtonAction) 
 	if (action)&(osu.Released) > 0 {
 		info.sprite.ClearTransformationsOfType(animation.Scale)
 		info.sprite.AddTransform(animation.NewSingleTransform(animation.Scale, easing.OutQuad, max(time, info.lastPress), time+100, info.sprite.GetScale().Y, 1.0))
+
 		info.sprite.AddTransform(animation.NewColorTransform(animation.Color3, easing.OutQuad, time, time+100, info.pressedColor, info.baseColor))
 	}
 }
