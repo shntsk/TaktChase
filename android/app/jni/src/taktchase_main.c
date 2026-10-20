@@ -14,31 +14,12 @@
 
 #include "go_bridge.h"
 #include "takt_log.h"
+#include "taktchase_sprite_gles.h"
 
 /* Clear colour (teal) as 8-bit values, used for the self-check below. */
 #define CLEAR_R 13
 #define CLEAR_G 140
 #define CLEAR_B 166
-
-static const char *kVertexSrc =
-    "#version 300 es\n"
-    "layout(location = 0) in vec2 aPos;\n"
-    "layout(location = 1) in vec3 aCol;\n"
-    "uniform float uAngle;\n"
-    "out vec3 vCol;\n"
-    "void main() {\n"
-    "    float c = cos(uAngle), s = sin(uAngle);\n"
-    "    vec2 p = vec2(c * aPos.x - s * aPos.y, s * aPos.x + c * aPos.y);\n"
-    "    gl_Position = vec4(p, 0.0, 1.0);\n"
-    "    vCol = aCol;\n"
-    "}\n";
-
-static const char *kFragmentSrc =
-    "#version 300 es\n"
-    "precision mediump float;\n"
-    "in vec3 vCol;\n"
-    "out vec4 outColor;\n"
-    "void main() { outColor = vec4(vCol, 1.0); }\n";
 
 typedef struct {
     GLuint program;
@@ -112,6 +93,64 @@ static void scene_init(Scene *sc) {
 
     sc->ok = glGetError() == GL_NO_ERROR;
     TLOGI("TAKT_PROBE scene_init=%s", sc->ok ? "ok" : "FAIL (GL error)");
+}
+
+/* Compile/link the real game's sprite shaders after the GLES context is current.
+ * This is a shader compatibility checkpoint, not a claim that the full batch
+ * renderer or gameplay scene has been ported. */
+static bool sprite_shader_selftest(void) {
+    GLuint vs = compile_shader(GL_VERTEX_SHADER, kSpriteVertexGlesSrc);
+    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, kSpriteFragmentGlesSrc);
+    if (!vs || !fs) {
+        if (vs) glDeleteShader(vs);
+        if (fs) glDeleteShader(fs);
+        TLOGE("TAKT_RENDER sprite_shader_compile=FAIL stage=compile");
+        return false;
+    }
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
+    if (linked != GL_TRUE) {
+        char log[1024] = {0};
+        glGetProgramInfoLog(program, (GLsizei)sizeof(log) - 1, NULL, log);
+        TLOGE("TAKT_RENDER sprite_shader_compile=FAIL stage=link log=%s", log);
+        glDeleteProgram(program);
+        return false;
+    }
+
+    static const char *required_attributes[] = {
+        "base_pos", "base_uv", "in_origin", "in_scale", "in_position",
+        "in_rotation", "in_u", "in_v", "in_layer", "in_color", "in_additive"
+    };
+    bool interface_ok = true;
+    for (size_t i = 0; i < sizeof(required_attributes) / sizeof(required_attributes[0]); ++i) {
+        if (glGetAttribLocation(program, required_attributes[i]) < 0) {
+            TLOGE("TAKT_RENDER sprite_shader_interface=FAIL missing_attribute=%s",
+                  required_attributes[i]);
+            interface_ok = false;
+        }
+    }
+    if (glGetUniformLocation(program, "proj") < 0 ||
+        glGetUniformLocation(program, "tex") < 0) {
+        TLOGE("TAKT_RENDER sprite_shader_interface=FAIL missing_uniform=proj_or_tex");
+        interface_ok = false;
+    }
+
+    glDeleteProgram(program);
+    if (!interface_ok) {
+        TLOGE("TAKT_RENDER sprite_shader_compile=FAIL stage=interface");
+        return false;
+    }
+    TLOGI("TAKT_RENDER sprite_shader_compile=PASS source=assets/shaders/sprite.vsh+sprite.fsh "
+          "target=GLES3 attributes=11 uniforms=proj,tex");
+    return true;
 }
 
 static void scene_destroy(Scene *sc) {
@@ -213,6 +252,13 @@ int main(int argc, char *argv[]) {
     TLOGI("TAKT_PROBE gles_major_minor=%d.%d", (int)major, (int)minor);
     if (major < 3) {
         TLOGE("TAKT_PROBE gles3=FAIL (got %d.%d)", (int)major, (int)minor);
+        SDL_GL_DestroyContext(ctx);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    if (!sprite_shader_selftest()) {
         SDL_GL_DestroyContext(ctx);
         SDL_DestroyWindow(window);
         SDL_Quit();
