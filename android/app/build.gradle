@@ -1,0 +1,83 @@
+plugins {
+    id 'com.android.application'
+}
+
+// ABI of this build. The stage-2 deliverable is arm64-v8a only; x86_64 exists
+// solely for the optional emulator smoke test (-PtaktAbi=x86_64).
+def taktAbi = project.findProperty('taktAbi') ?: 'arm64-v8a'
+def goLibDir = file("src/main/jniLibs/${taktAbi}")
+
+android {
+    namespace = "io.github.shntsk.taktchase.probe"
+    compileSdk 35
+    ndkVersion = "28.2.13676358"
+
+    defaultConfig {
+        applicationId "io.github.shntsk.taktchase.probe"
+        // API 24 everywhere: the Go library is linked against the API 24 NDK sysroot.
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "0.0.1-probe"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PLATFORM=android-24", "-DANDROID_STL=c++_static"
+                abiFilters taktAbi
+            }
+        }
+        ndk {
+            abiFilters taktAbi
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    sourceSets {
+        main {
+            // SDL's Java classes (org.libsdl.app.*) are taken from the pinned
+            // SDL checkout instead of being copied into this repository.
+            java.srcDir 'jni/SDL/android-project/app/src/main/java'
+            jniLibs.srcDir 'src/main/jniLibs'
+        }
+    }
+
+    packaging {
+        jniLibs {
+            pickFirsts += ['**/libtaktgo.so']
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    lint {
+        abortOnError = false
+    }
+}
+
+// Fail early and clearly if a prerequisite is missing, instead of producing an
+// APK without the Go library or without SDL's Java sources.
+tasks.register('verifyNativePrerequisites') {
+    doFirst {
+        def goLib = new File(goLibDir, 'libtaktgo.so')
+        if (!goLib.isFile()) {
+            throw new GradleException("Missing ${goLib}. Run android/scripts/build-go.sh (ABI ${taktAbi}) first.")
+        }
+        def sdlJava = file('jni/SDL/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java')
+        if (!sdlJava.isFile()) {
+            throw new GradleException("Missing SDL sources. Run android/scripts/fetch-sdl.sh first.")
+        }
+    }
+}
+tasks.matching { it.name == 'preBuild' }.configureEach {
+    dependsOn 'verifyNativePrerequisites'
+}

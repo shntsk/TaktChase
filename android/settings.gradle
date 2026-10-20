@@ -1,0 +1,2 @@
+rootProject.name = 'taktchase-android-probe'
+include ':app'
