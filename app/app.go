@@ -740,7 +740,15 @@ func mainLoopNormal() {
 						settings.DEBUG = !settings.DEBUG
 					}
 				case "ESCAPE":
-					gcontext.SetShouldClose(true)
+					if activePlayer, ok := player.(*states.Player); ok {
+						activePlayer.HandleMenuKey(event.Name)
+					} else {
+						gcontext.SetShouldClose(true)
+					}
+				case "UP", "DOWN", "RETURN", "ENTER", "KP_ENTER", "NUMPADENTER":
+					if activePlayer, ok := player.(*states.Player); ok {
+						activePlayer.HandleMenuKey(event.Name)
+					}
 				case "MINUS":
 					settings.DIVIDES = max(1, settings.DIVIDES-1)
 				case "=":
