@@ -6,10 +6,22 @@ on:
   push:
     paths:
       - 'android/**'
+      - 'framework/graphics/batch/**'
+      - 'framework/graphics/buffer/**'
+      - 'framework/graphics/texture/**'
+      - 'framework/graphics/shader/**'
+      - 'framework/graphics/attribute/**'
+      - 'assets/shaders/**'
       - '.github/workflows/android-debug.yml'
   pull_request:
     paths:
       - 'android/**'
+      - 'framework/graphics/batch/**'
+      - 'framework/graphics/buffer/**'
+      - 'framework/graphics/texture/**'
+      - 'framework/graphics/shader/**'
+      - 'framework/graphics/attribute/**'
+      - 'assets/shaders/**'
       - '.github/workflows/android-debug.yml'
   workflow_dispatch:
     inputs:
