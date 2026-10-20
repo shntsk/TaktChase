@@ -499,7 +499,6 @@ func (b *mapBrowser) drawLeftEmpty(w, h float32) {
 // drawMapInfo draws the selected beatmap title, difficulty and stats. It returns the ending Y position.
 func (b *mapBrowser) drawMapInfo(m *beatmap.BeatMap, iw, ip float32) float32 {
 	y := float32(ip)
-
 	// The selected map is presented as an overlay, leaving the beatmap artwork
 	// visible behind the panel instead of adding a second, oversized cover.
 	y += 2
