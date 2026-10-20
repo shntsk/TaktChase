@@ -64,6 +64,20 @@ jobs:
           ./dist-win.sh "$version"
           test -f "dist/artifacts/taktchase-${version}-win.zip" || { echo "Windows build failed"; exit 1; }
 
+      - name: Verify package contents
+        run: |
+          python - "dist/artifacts/taktchase-${{ needs.version.outputs.version }}-win.zip" <<'PY'
+          import sys, zipfile
+          names = set(zipfile.ZipFile(sys.argv[1]).namelist())
+          required = ["taktchase.exe", "taktchase-cli.exe", "taktchase-core.dll", "assets.dpak",
+                      "bass.dll", "bass_fx.dll", "bassmix.dll", "libyuv.dll", "SDL3.dll"]
+          missing = [n for n in required if n not in names]
+          if missing:
+              print("Missing from Windows package:", missing)
+              sys.exit(1)
+          print("Windows package OK:", len(names), "files")
+          PY
+
       - uses: actions/upload-artifact@v4
         with:
           name: taktchase-win
@@ -97,6 +111,17 @@ jobs:
           version="${{ needs.version.outputs.version }}"
           ./dist-linux.sh "$version"
           test -f "dist/artifacts/taktchase-${version}-linux.zip" || { echo "Linux build failed"; exit 1; }
+
+      - name: Verify package contents
+        run: |
+          z="dist/artifacts/taktchase-${{ needs.version.outputs.version }}-linux.zip"
+          for f in taktchase taktchase-cli; do
+            unzip -Z "$z" "$f" | grep -q '^-rwx' || { echo "Missing or not executable in Linux package: $f"; exit 1; }
+          done
+          for f in libtaktchase-core.so assets.dpak libbass.so libbass_fx.so libbassmix.so libyuv.so libSDL3.so; do
+            unzip -Z1 "$z" | grep -qx "$f" || { echo "Missing from Linux package: $f"; exit 1; }
+          done
+          echo "Linux package OK"
 
       - uses: actions/upload-artifact@v4
         with:
