@@ -11,6 +11,9 @@ on:
       - 'framework/graphics/texture/**'
       - 'framework/graphics/shader/**'
       - 'framework/graphics/attribute/**'
+      - 'framework/assets/**'
+      - 'go.mod'
+      - 'go.sum'
       - 'assets/shaders/**'
       - '.github/workflows/android-debug.yml'
   pull_request:
@@ -26,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       run_emulator:
-        description: 'Also run the optional x86_64 emulator smoke test (diagnostic, non-blocking)'
+        description: 'Also run the x86_64 Android emulator smoke test'
         type: boolean
         default: false
 
