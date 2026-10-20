@@ -88,7 +88,8 @@ func (r *desktopBatchRenderer) setProjection(projection mgl32.Mat4) {
 	r.shader.SetUniform("proj", projection)
 }
 
-func (r *desktopBatchRenderer) flush(tex texture.Texture, usedFloats, spriteCount, baseOffset int) batchTarget {
+func (r *desktopBatchRenderer) flush(tex texture.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget {
+	_ = data // desktop writes directly through its mapped buffer chunk.
 	if tex.GetLocation() == 0 {
 		tex.Bind(0)
 	}
