@@ -282,7 +282,7 @@ func (r *glesBatchRenderer) setProjection(projection mgl32.Mat4) {
 		(*C.GLfloat)(unsafe.Pointer(&projection[0])))
 }
 
-func (r *glesBatchRenderer) flush(tex texture.Texture, usedFloats, spriteCount, baseOffset int) batchTarget {
+func (r *glesBatchRenderer) flush(tex texture.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget {
 	_ = baseOffset // GLES path uploads the current CPU slice at offset zero.
 	if tex == nil || tex.GetID() == 0 {
 		panic("TaktChase GLES batch received an uninitialized texture")
@@ -295,11 +295,17 @@ func (r *glesBatchRenderer) flush(tex texture.Texture, usedFloats, spriteCount, 
 	C.glBindTexture(C.GL_TEXTURE_2D_ARRAY, C.GLuint(tex.GetID()))
 	C.glUniform1i(C.GLint(r.textureLocation), 0)
 	C.glBindBuffer(C.GL_ARRAY_BUFFER, C.GLuint(r.instanceVBO))
-
-	// data is owned by Go for the duration of this synchronous upload; C does
-	// not retain the pointer after glBufferData returns.
-	// The current batch data is supplied by QuadBatch.Flush below.
-	return batchTarget{data: nil, offset: 0}
+	if usedFloats > len(data) {
+		panic("TaktChase GLES batch data length does not cover the requested upload")
+	}
+	if usedFloats > 0 {
+		// data is owned by Go for this synchronous upload; GL copies it before
+		// returning and does not retain the Go pointer.
+		C.glBufferData(C.GL_ARRAY_BUFFER, C.GLsizeiptr(usedFloats*4),
+			unsafe.Pointer(&data[0]), C.GL_STREAM_DRAW)
+	}
+	C.glDrawElementsInstanced(C.GL_TRIANGLES, 6, C.GL_UNSIGNED_SHORT, nil, C.GLsizei(spriteCount))
+	return batchTarget{data: make([]float32, r.maxSprites*r.vertexSize), offset: 0}
 }
 
 func (r *glesBatchRenderer) end() {
