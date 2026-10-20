@@ -278,7 +278,7 @@ func (r *glesBatchRenderer) flush(tex textureapi.Texture, data []float32, usedFl
 			unsafe.Pointer(&data[0]), C.GL_STREAM_DRAW)
 	}
 	C.glDrawElementsInstanced(C.GL_TRIANGLES, 6, C.GL_UNSIGNED_SHORT, nil, C.GLsizei(spriteCount))
-	return batchTarget{data: make([]float32, r.maxSprites*r.vertexSize), offset: 0}
+	return batchTarget{data: data[:r.maxSprites*r.vertexSize], offset: 0}
 }
 
 func (r *glesBatchRenderer) end() {
