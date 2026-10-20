@@ -23,7 +23,7 @@ type batchTarget struct {
 type spriteBatchRenderer interface {
 	begin(projection mgl32.Mat4)
 	setProjection(projection mgl32.Mat4)
-	flush(tex texture.Texture, usedFloats, spriteCount, baseOffset int) batchTarget
+	flush(tex texture.Texture, data []float32, usedFloats, spriteCount, baseOffset int) batchTarget
 	end()
 }
 
@@ -111,7 +111,7 @@ func (batch *QuadBatch) Flush() {
 		return
 	}
 
-	next := batch.renderer.flush(batch.texture, batch.currentFloats, batch.currentSize, batch.chunkOffset)
+	next := batch.renderer.flush(batch.texture, batch.data, batch.currentFloats, batch.currentSize, batch.chunkOffset)
 	batch.data = next.data
 	batch.chunkOffset = next.offset
 
