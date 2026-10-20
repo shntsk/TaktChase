@@ -496,6 +496,9 @@ func run() {
 		bass.Init(settings.RECORD)
 		audio.LoadSamples()
 
+		// Keep the window responsive during the loading phase
+		gcontext.HandleEvents()
+
 		if settings.PLAY || !settings.KNOCKOUT || allowDA {
 			if modsNew == nil {
 				modsNew = modsParsed.ConvertToModInfoList()
@@ -579,7 +582,9 @@ func run() {
 
 		beatmap.ParseTimingPointsAndPauses(beatMap)
 		beatmap.ParseObjects(beatMap, false, true)
+		gcontext.HandleEvents()
 		beatMap.LoadCustomSamples()
+		gcontext.HandleEvents()
 		player = states.NewPlayer(beatMap)
 
 		if !settings.RECORD {
