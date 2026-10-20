@@ -322,6 +322,7 @@ int main(int argc, char *argv[]) {
     TLOGI("TAKT_RENDER quadbatch_init=PASS backend=GLES3 path=QuadBatch");
 
     bool running = true;
+    bool test_failed = false;
     bool active = true;
     bool checked = false;
     bool background_seen = false;
@@ -369,7 +370,8 @@ int main(int argc, char *argv[]) {
                     renderer_ok = scene.ok && takt_renderer_init() != 0;
                     TLOGI("TAKT_RENDER quadbatch_resume_init=%s",
                           renderer_ok ? "PASS" : "FAIL");
-                    check_resume_frame = renderer_ok;
+                    if (!renderer_ok) test_failed = true;
+                    check_resume_frame = true;
                 }
                 break;
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
@@ -394,6 +396,7 @@ int main(int argc, char *argv[]) {
         bool batch_draw_ok = renderer_ok && takt_renderer_draw() != 0;
         if (!batch_draw_ok) {
             TLOGE("TAKT_RENDER quadbatch_draw=FAIL");
+            test_failed = true;
             running = false;
         }
 
@@ -407,7 +410,10 @@ int main(int argc, char *argv[]) {
             TLOGI("TAKT_PROBE resumed_render=%s gl_error=0x%x",
                   resumed_ok ? "PASS" : "FAIL", (unsigned)resume_error);
             check_resume_frame = false;
-            if (!resumed_ok) running = false;
+            if (!resumed_ok) {
+                test_failed = true;
+                running = false;
+            }
         }
 
         if (!checked) {
@@ -419,7 +425,10 @@ int main(int argc, char *argv[]) {
             bool pass = triangle_ok && batch_pixel_ok && err == GL_NO_ERROR;
             TLOGI("TAKT_PROBE first_frame size=%dx%d gl_error=0x%x scene=%s go=%s",
                   w, h, (unsigned)err, pass ? "PASS" : "FAIL", go_ok ? "PASS" : "FAIL");
-            if (!pass) running = false;
+            if (!pass) {
+                test_failed = true;
+                running = false;
+            }
         }
 
         SDL_GL_SwapWindow(window);
@@ -435,5 +444,5 @@ int main(int argc, char *argv[]) {
     SDL_GL_DestroyContext(ctx);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return test_failed ? 1 : 0;
 }
