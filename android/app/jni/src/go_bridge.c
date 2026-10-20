@@ -25,6 +25,27 @@ int takt_go_selftest(void) {
     return 1;
 }
 
+int takt_renderer_init(void) {
+    int32_t ok = TaktRendererInit();
+    TLOGI("TAKT_RENDER quadbatch_init=%s", ok ? "PASS" : "FAIL");
+    return ok == 1;
+}
+
+int takt_renderer_draw(void) {
+    int32_t ok = TaktRendererDraw();
+    if (ok != 1) {
+        TLOGE("TAKT_RENDER quadbatch_draw=FAIL");
+        return 0;
+    }
+    return 1;
+}
+
+int takt_renderer_destroy(void) {
+    int32_t ok = TaktRendererDestroy();
+    TLOGI("TAKT_RENDER quadbatch_destroy=%s", ok ? "PASS" : "FAIL");
+    return ok == 1;
+}
+
 /* JNI: io.github.shntsk.taktchase.probe.GoBridge.nativeAdd(int, int) */
 JNIEXPORT jint JNICALL
 Java_io_github_shntsk_taktchase_probe_GoBridge_nativeAdd(JNIEnv *env, jclass clazz,
