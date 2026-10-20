@@ -24,6 +24,9 @@ on:
       - 'framework/graphics/texture/**'
       - 'framework/graphics/shader/**'
       - 'framework/graphics/attribute/**'
+      - 'go.sum'
+      - 'go.mod'
+      - 'framework/assets/**'
       - 'assets/shaders/**'
       - '.github/workflows/android-debug.yml'
   workflow_dispatch:
