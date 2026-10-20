@@ -301,7 +301,7 @@ func (r *glesBatchRenderer) end() {
 func (r *glesBatchRenderer) dispose() {
 	var program C.GLuint = C.GLuint(r.program)
 	var vao C.GLuint = C.GLuint(r.vao)
-	var buffers [3]C.GLuint{C.GLuint(r.baseVBO), C.GLuint(r.instanceVBO), C.GLuint(r.indexBuffer)}
+	buffers := [3]C.GLuint{C.GLuint(r.baseVBO), C.GLuint(r.instanceVBO), C.GLuint(r.indexBuffer)}
 	C.glDeleteProgram(program)
 	C.glDeleteVertexArrays(1, &vao)
 	C.glDeleteBuffers(C.GLsizei(len(buffers)), &buffers[0])
