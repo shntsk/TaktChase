@@ -28,12 +28,14 @@ for marker in \
     "TAKT_PROBE gles_major_minor=3" \
     "TAKT_PROBE scene_check=PASS" \
     "TAKT_RENDER sprite_shader_compile=PASS" \
+    "TAKT_RENDER quadbatch_init=PASS" \
+    "TAKT_RENDER quadbatch_fixture=PASS" \
     "TAKT_PROBE heartbeat"; do
     grep -qF "$marker" "$log" || fail "marker not found: $marker"
 done
 grep -q "FATAL EXCEPTION" "$log" && fail "Java crash detected"
 adb shell pidof "$pkg" >/dev/null || fail "process is not running after 20 s"
-echo "OK: start-up, Go calls (C and JNI), GLES scene and heartbeat verified"
+echo "OK: start-up, Go calls (C and JNI), GLES shaders, real QuadBatch draw and heartbeat verified"
 
 # Lifecycle: background and foreground again must not crash the app.
 adb shell input keyevent KEYCODE_HOME
@@ -41,7 +43,7 @@ sleep 4
 adb shell am start -n "$act"
 sleep 6
 collect
-for marker in "event=DID_ENTER_BACKGROUND" "event=DID_ENTER_FOREGROUND" "TAKT_PROBE resumed_render=PASS"; do
+for marker in "event=DID_ENTER_BACKGROUND" "event=DID_ENTER_FOREGROUND" "TAKT_RENDER quadbatch_resume_init=PASS" "TAKT_PROBE resumed_render=PASS"; do
     grep -qF "$marker" "$log" || fail "lifecycle marker not found: $marker"
 done
 grep -q "FATAL EXCEPTION" "$log" && fail "crash after background/foreground"
