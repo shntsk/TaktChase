@@ -12,22 +12,27 @@
 
 This is intentionally a shader compatibility checkpoint, **not** a rendering claim: compilation does not prove the game's batch pipeline, vertex data, texture uploads, blending or a hit object can render through GLES.
 
-## Renderer audit: exact integration blockers
+## Renderer audit: the bridge boundary and remaining blockers
 
-The Android native build graph still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not compile the repository's root Go game module, its gameplay renderer or its rendering packages. The triangle is only the current diagnostic scene.
+The native Android build still compiles only `android/app/jni/src/taktchase_main.c` and `go_bridge.c`, and links the separate probe module under `android/go/`. It does not yet compile the repository's root Go game module or draw a gameplay element. The triangle remains only a diagnostic scene.
 
-The first candidate for a real rendering slice is the existing sprite/quad batch. Its sources are not GLES-ready as they stand:
+The first source-level refactor creates a renderer seam in the existing game code:
 
-- `framework/graphics/batch/batch.go` creates the real sprite shader and configures a `buffer.VertexArrayObject`.
-- `framework/graphics/buffer/vao.go` uses desktop DSA VAO calls including `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`.
+- `framework/graphics/batch/batch.go` now owns the same public `QuadBatch` API, transform calculations, sprite ordering and packed instance data. It sends GPU work through the internal `spriteBatchRenderer` interface.
+- `framework/graphics/batch/renderer_desktop.go` contains the existing desktop OpenGL resource setup and draw calls. This preserves the current desktop implementation behind the interface and is excluded from Android builds with a build constraint.
+- The Android implementation of `spriteBatchRenderer` is **not implemented yet**. The new interface is the connection point, not a claim that the desktop GPU calls already work on GLES.
+
+The remaining platform-specific work includes:
+
+- `framework/graphics/buffer/vao.go` uses desktop DSA VAO calls such as `CreateVertexArrays`, `EnableVertexArrayAttrib`, `VertexArrayAttribBinding`, `VertexArrayAttribFormat`, `VertexArrayVertexBuffer` and `VertexArrayBindingDivisor`.
 - `framework/graphics/buffer/vbo.go` and `ibo.go` use `CreateBuffers`, `NamedBufferData` and `NamedBufferSubData`; indexed instanced drawing calls `DrawElementsInstancedBaseInstance`.
 - `framework/graphics/texture/texture.go` uses desktop DSA texture calls including `CreateTextures`, `TextureStorage3D`, `TextureParameteri` and `TextureSubImage3D`.
-- `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and uses direct program-uniform APIs such as `ProgramUniform1fv`.
-- GLSL ES 3.00 supports array textures, so the two sprite shaders can be adapted for syntax/interface validation. This alone does not solve the desktop DSA calls or the batch's base-instance assumption. GLES 3.0 has no drop-in equivalent for the desktop calls above.
+- `framework/graphics/shader/rshader.go` depends on the desktop `github.com/go-gl/gl/v3.3-core/gl` binding and direct program-uniform APIs such as `ProgramUniform1fv`.
+- The Go batch API still imports the existing texture package, whose resource implementation also needs a GLES backend before the root gameplay module can be built for Android.
 
-A deliberate Android renderer backend/compatibility layer is still required: bind-based buffer and texture allocation/update, GLES vertex-array setup, uniform updates with the program bound, and a correct fallback for base-instance offsets/instancing. It must be isolated from the desktop GL implementation so Windows/Linux remain unchanged. The root Go module and the current desktop GL loader also need an Android-compatible build path before gameplay code can link against it.
+The next backend should use ordinary GLES buffer/texture allocation and updates, configure vertex attributes with GLES calls, bind the shader before changing uniforms, and emulate base-instance batching by uploading each flush into a fresh/offset-zero buffer before `glDrawElementsInstanced`. That avoids requiring desktop base-instance semantics. These changes must remain separate from the desktop implementation.
 
-That is the current blocker to drawing a genuine playfield element in this stage. The runtime shader check is a useful, source-derived subsystem test, but it does not pretend this backend work is complete.
+The generated sprite shader test verifies only shader syntax and interface. It doesn't prove the quad batch, its textures, or hit objects can yet render on Android.
 
 ## Current evidence status
 
