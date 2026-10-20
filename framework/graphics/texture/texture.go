@@ -4,39 +4,16 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 
 	"github.com/shntsk/taktchase/framework/graphics/hacks"
+	"github.com/shntsk/taktchase/framework/graphics/textureapi"
 	color2 "github.com/shntsk/taktchase/framework/math/color"
 )
 
-type Filter int32
-
-var Filtering = struct {
-	Nearest,
-	Linear,
-	MipMap,
-	MipMapNearestNearest,
-	MipMapLinearNearest,
-	MipMapNearestLinear,
-	MipMapLinearLinear Filter
-}{gl.NEAREST, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.NEAREST_MIPMAP_NEAREST, gl.LINEAR_MIPMAP_NEAREST, gl.NEAREST_MIPMAP_LINEAR, gl.LINEAR_MIPMAP_LINEAR}
-
-type Texture interface {
-	GetID() uint32
-	GetWidth() int32
-	GetHeight() int32
-	GetRegion() TextureRegion
-	GetLayers() int32
-	SetFiltering(min, mag Filter)
-	Bind(loc uint)
-	GetLocation() uint
-	Dispose()
-}
-
-type TextureRegion struct {
-	Texture        Texture
-	U1, U2, V1, V2 float32
-	Width, Height  float32
-	Layer          int32
-}
+// Re-export the backend-neutral API so existing desktop callers retain the
+// same package names and source compatibility.
+type Filter = textureapi.Filter
+var Filtering = textureapi.Filtering
+type Texture = textureapi.Texture
+type TextureRegion = textureapi.TextureRegion
 
 type textureStore struct {
 	id                             uint32
