@@ -308,7 +308,7 @@ func (l *launcher) startContext() {
 	settings.Graphics.WindowWidth = 1280
 	settings.Graphics.WindowHeight = 720
 
-	iconName := "taktchasecoin*"
+	iconName := "dansercoin*"
 
 	if l.christmas {
 		iconName += "-s"
