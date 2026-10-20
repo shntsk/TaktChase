@@ -19,6 +19,8 @@ type desktopBatchRenderer struct {
 	maxSprites int
 }
 
+var _ spriteBatchRenderer = (*desktopBatchRenderer)(nil)
+
 func newBatchRenderer(maxSprites int, persistent bool) (spriteBatchRenderer, batchTarget, int) {
 	vert, err := assets.GetString("assets/shaders/sprite.vsh")
 	if err != nil {
