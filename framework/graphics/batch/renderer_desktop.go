@@ -15,6 +15,7 @@ import (
 type desktopBatchRenderer struct {
 	shader     *shader.RShader
 	vao        *buffer.VertexArrayObject
+	ibo        *buffer.IndexBufferObject
 	vertexSize int
 	maxSprites int
 }
@@ -70,7 +71,7 @@ func newBatchRenderer(maxSprites int, persistent bool) (spriteBatchRenderer, bat
 	vertexSize := vao.GetVBOFormat("quads").Size() / 4
 	chunk := vao.MapVBO("quads", maxSprites*vertexSize)
 	renderer := &desktopBatchRenderer{
-		shader: rShader, vao: vao, vertexSize: vertexSize, maxSprites: maxSprites,
+		shader: rShader, vao: vao, ibo: ibo, vertexSize: vertexSize, maxSprites: maxSprites,
 	}
 	return renderer, batchTarget{data: chunk.Data, offset: chunk.Offset}, vertexSize
 }
@@ -104,4 +105,10 @@ func (r *desktopBatchRenderer) end() {
 	r.vao.Unbind()
 	r.shader.Unbind()
 	blend.Pop()
+}
+
+func (r *desktopBatchRenderer) dispose() {
+	r.vao.Dispose()
+	r.ibo.Dispose()
+	r.shader.Dispose()
 }
