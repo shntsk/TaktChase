@@ -21,6 +21,28 @@
 #define CLEAR_G 140
 #define CLEAR_B 166
 
+/* Stage 2's diagnostic triangle remains as a bridge/GLES smoke fixture.
+ * These shaders are deliberately not used for the game sprite-shader test. */
+static const char *kProbeVertexSrc =
+    "#version 300 es\n"
+    "layout(location = 0) in vec2 aPos;\n"
+    "layout(location = 1) in vec3 aCol;\n"
+    "uniform float uAngle;\n"
+    "out vec3 vCol;\n"
+    "void main() {\n"
+    "    float c = cos(uAngle), s = sin(uAngle);\n"
+    "    vec2 p = vec2(c * aPos.x - s * aPos.y, s * aPos.x + c * aPos.y);\n"
+    "    gl_Position = vec4(p, 0.0, 1.0);\n"
+    "    vCol = aCol;\n"
+    "}\n";
+
+static const char *kProbeFragmentSrc =
+    "#version 300 es\n"
+    "precision mediump float;\n"
+    "in vec3 vCol;\n"
+    "out vec4 outColor;\n"
+    "void main() { outColor = vec4(vCol, 1.0); }\n";
+
 typedef struct {
     GLuint program;
     GLuint vao;
@@ -47,8 +69,8 @@ static GLuint compile_shader(GLenum type, const char *src) {
 
 static void scene_init(Scene *sc) {
     memset(sc, 0, sizeof(*sc));
-    GLuint vs = compile_shader(GL_VERTEX_SHADER, kVertexSrc);
-    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, kFragmentSrc);
+    GLuint vs = compile_shader(GL_VERTEX_SHADER, kProbeVertexSrc);
+    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, kProbeFragmentSrc);
     if (!vs || !fs) {
         if (vs) glDeleteShader(vs);
         if (fs) glDeleteShader(fs);
