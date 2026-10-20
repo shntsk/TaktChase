@@ -297,3 +297,142 @@ func (r *glesBatchRenderer) end() {
 		C.glDisable(C.GL_BLEND)
 	}
 }
+
+func (r *glesBatchRenderer) dispose() {
+	var program C.GLuint = C.GLuint(r.program)
+	var vao C.GLuint = C.GLuint(r.vao)
+	var buffers [3]C.GLuint{C.GLuint(r.baseVBO), C.GLuint(r.instanceVBO), C.GLuint(r.indexBuffer)}
+	C.glDeleteProgram(program)
+	C.glDeleteVertexArrays(1, &vao)
+	C.glDeleteBuffers(C.GLsizei(len(buffers)), &buffers[0])
+	r.program, r.vao, r.baseVBO, r.instanceVBO, r.indexBuffer = 0, 0, 0, 0, 0
+}
+
+type AndroidBatchFixture struct {
+	batch *QuadBatch
+	texture *glesFixtureTexture
+}
+
+// NewAndroidBatchFixture creates a deterministic texture and renders it through
+// TaktChase's real QuadBatch and GLES backend. It is a renderer integration
+// fixture, not a replacement gameplay renderer.
+func NewAndroidBatchFixture() *AndroidBatchFixture {
+	b := NewQuadBatchSize(8)
+	t := newGLESFixtureTexture()
+	return &AndroidBatchFixture{batch: b, texture: t}
+}
+
+func (f *AndroidBatchFixture) Draw() bool {
+	if f == nil || f.batch == nil || f.texture == nil || f.texture.GetID() == 0 {
+		return false
+	}
+	f.batch.SetTranslation(vector.NewVec2d(0.60, 0.55))
+	f.batch.SetScale(0.02, 0.02)
+	f.batch.SetColor32(1, 1, 1, 1)
+	f.batch.Begin()
+	f.batch.DrawTexture(f.texture.GetRegion())
+	f.batch.End()
+	return C.glGetError() == C.GL_NO_ERROR
+}
+
+func (f *AndroidBatchFixture) Dispose() {
+	if f == nil {
+		return
+	}
+	if f.batch != nil {
+		f.batch.Dispose()
+		f.batch = nil
+	}
+	if f.texture != nil {
+		f.texture.Dispose()
+		f.texture = nil
+	}
+}
+
+type glesFixtureTexture struct {
+	id uint32
+	width int32
+	height int32
+	location uint
+}
+
+var _ textureapi.Texture = (*glesFixtureTexture)(nil)
+
+func newGLESFixtureTexture() *glesFixtureTexture {
+	const width, height = 16, 16
+	pixels := make([]byte, width*height*4)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			dx, dy := float64(x)-7.5, float64(y)-7.5
+			if dx*dx+dy*dy > 49 {
+				continue
+			}
+			i := (y*width + x) * 4
+			pixels[i+0] = 42
+			pixels[i+1] = 210
+			pixels[i+2] = 255
+			pixels[i+3] = 255
+		}
+	}
+
+	var previousActive, previousTexture C.GLint
+	C.glGetIntegerv(C.GL_ACTIVE_TEXTURE, &previousActive)
+	C.glActiveTexture(C.GL_TEXTURE0)
+	C.glGetIntegerv(C.GL_TEXTURE_BINDING_2D_ARRAY, &previousTexture)
+
+	var id C.GLuint
+	C.glGenTextures(1, &id)
+	if id == 0 {
+		C.glActiveTexture(C.GLenum(previousActive))
+		panic("GLES could not allocate the QuadBatch fixture texture")
+	}
+	C.glBindTexture(C.GL_TEXTURE_2D_ARRAY, id)
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_MIN_FILTER, C.GL_LINEAR)
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_MAG_FILTER, C.GL_LINEAR)
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_WRAP_S, C.GL_CLAMP_TO_EDGE)
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_WRAP_T, C.GL_CLAMP_TO_EDGE)
+	C.glTexImage3D(C.GL_TEXTURE_2D_ARRAY, 0, C.GLint(C.GL_RGBA8),
+		width, height, 1, 0, C.GL_RGBA, C.GL_UNSIGNED_BYTE,
+		unsafe.Pointer(&pixels[0]))
+	C.glBindTexture(C.GL_TEXTURE_2D_ARRAY, C.GLuint(previousTexture))
+	C.glActiveTexture(C.GLenum(previousActive))
+	if glErr := C.glGetError(); glErr != C.GL_NO_ERROR {
+		C.glDeleteTextures(1, &id)
+		panic(fmt.Sprintf("GLES fixture texture creation failed: 0x%x", uint32(glErr)))
+	}
+	return &glesFixtureTexture{id: uint32(id), width: width, height: height}
+}
+
+func (t *glesFixtureTexture) GetID() uint32 { return t.id }
+func (t *glesFixtureTexture) GetWidth() int32 { return t.width }
+func (t *glesFixtureTexture) GetHeight() int32 { return t.height }
+func (t *glesFixtureTexture) GetLayers() int32 { return 1 }
+func (t *glesFixtureTexture) GetLocation() uint { return t.location }
+
+func (t *glesFixtureTexture) GetRegion() textureapi.TextureRegion {
+	return textureapi.TextureRegion{
+		Texture: t, U1: 0, U2: 1, V1: 0, V2: 1,
+		Width: float32(t.width), Height: float32(t.height), Layer: 0,
+	}
+}
+
+func (t *glesFixtureTexture) Bind(loc uint) {
+	C.glActiveTexture(C.GLenum(C.GL_TEXTURE0) + C.GLenum(loc))
+	C.glBindTexture(C.GL_TEXTURE_2D_ARRAY, C.GLuint(t.id))
+	t.location = loc
+}
+
+func (t *glesFixtureTexture) SetFiltering(min, mag textureapi.Filter) {
+	t.Bind(t.location)
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_MIN_FILTER, C.GLint(min))
+	C.glTexParameteri(C.GL_TEXTURE_2D_ARRAY, C.GL_TEXTURE_MAG_FILTER, C.GLint(mag))
+}
+
+func (t *glesFixtureTexture) Dispose() {
+	if t.id == 0 {
+		return
+	}
+	id := C.GLuint(t.id)
+	C.glDeleteTextures(1, &id)
+	t.id = 0
+}
