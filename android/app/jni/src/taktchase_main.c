@@ -271,6 +271,8 @@ int main(int argc, char *argv[]) {
     bool running = true;
     bool active = true;
     bool checked = false;
+    bool background_seen = false;
+    bool check_resume_frame = false;
     Uint64 frames = 0;
     Uint64 t0 = SDL_GetTicks();
 
@@ -296,6 +298,7 @@ int main(int argc, char *argv[]) {
                 break;
             case SDL_EVENT_DID_ENTER_BACKGROUND:
                 TLOGI("TAKT_PROBE event=DID_ENTER_BACKGROUND");
+                background_seen = true;
                 active = false;
                 break;
             case SDL_EVENT_WILL_ENTER_FOREGROUND:
@@ -304,6 +307,7 @@ int main(int argc, char *argv[]) {
             case SDL_EVENT_DID_ENTER_FOREGROUND:
                 TLOGI("TAKT_PROBE event=DID_ENTER_FOREGROUND (resume drawing)");
                 active = true;
+                check_resume_frame = background_seen;
                 break;
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
                 TLOGI("TAKT_PROBE event=PIXEL_SIZE_CHANGED %dx%d", (int)ev.window.data1,
@@ -324,6 +328,18 @@ int main(int argc, char *argv[]) {
         SDL_GetWindowSizeInPixels(window, &w, &h);
         float angle = (float)(SDL_GetTicks() - t0) / 1000.0f;
         scene_draw(&scene, w, h, angle);
+
+        if (check_resume_frame) {
+            /* Verify a real post-resume frame by reading the rendered pixels,
+             * not merely by checking that the Activity process survived. */
+            bool frame_ok = scene.ok && scene_selfcheck(w, h);
+            GLenum resume_error = glGetError();
+            bool resumed_ok = frame_ok && resume_error == GL_NO_ERROR;
+            TLOGI("TAKT_PROBE resumed_render=%s gl_error=0x%x",
+                  resumed_ok ? "PASS" : "FAIL", (unsigned)resume_error);
+            check_resume_frame = false;
+            if (!resumed_ok) running = false;
+        }
 
         if (!checked) {
             /* Only the first frame is read back; glReadPixels stalls the GPU. */
