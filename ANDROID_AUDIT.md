@@ -222,3 +222,14 @@ Compilation alone is not proof of a playable Android port.
 ## Overall recommendation
 
 Start with the native Android feasibility prototype, but keep it separate from the existing gameplay code. The renderer's dependence on desktop OpenGL is the dominant technical risk. Once the Go/SDL/GLES foundation is demonstrably working, port the renderer and then build the Android map library, song selector and touch gameplay around the reusable beatmap/ruleset core.
+
+## Stage 3 follow-up — 2026-10-20
+
+The requested `android/port-stage2` branch was not present in the repository when this stage was prepared. The isolated `android/port-stage3` branch was therefore based on the available `launcher` branch, which contains the Stage 2 Android project and this audit. No changes were made to `master`.
+
+Stage 3 currently adds a source-derived GLES 3.00 variant of the existing `assets/shaders/sprite.vsh` and `assets/shaders/sprite.fsh`. The Android runtime compiles and links those shaders in a current GLES context and checks their expected vertex attributes and uniforms. The desktop shader files remain unchanged. This tests one real renderer dependency; it does **not** draw the sprite or prove that the desktop batch renderer works on Android.
+
+The renderer integration blockers remain the desktop `go-gl/gl/v3.3-core/gl` dependency, widespread Direct State Access calls in buffer/VAO/texture/shader code, and the `DrawElementsInstancedBaseInstance` assumption in indexed batching. The Android target still builds the nested Go probe rather than the root gameplay module. A GLES-native renderer backend or carefully scoped Android compatibility layer is still needed before an actual hit object can be drawn.
+
+Runtime validation in Stage 3 is assigned to the branch's GitHub Actions workflow: the x86_64 emulator smoke job is enabled automatically on pushes to `android/port-stage3` and checks Go/JNI, GLES, diagnostic pixels, the real sprite shader compile/link marker, and a pixel read-back after returning from background. Until that job reports success, these checks must be described as pending. No physical ARM64 device run is implied by an emulator pass, and the Android game is not yet playable.
+
