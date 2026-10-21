@@ -59,6 +59,9 @@ type scrollContainer struct {
 
 var scrollDeltas = make(map[imgui.ID]scrollContainer)
 
+// mouseWheelScale multiplies the wheel delta fed to ImGui; lower values scroll the launcher lists slower.
+const mouseWheelScale = 0.3
+
 func SetupImgui() {
 	log.Println("Imgui setup")
 
@@ -118,7 +121,8 @@ func SetupImgui() {
 	ibo = buffer.NewIndexBufferObject(100000)
 
 	gcontext.RegisterListener(func(event gcontext.ScrollEvent) {
-		ImIO.AddMouseWheelDelta(-event.X, event.Y)
+		// ImGui scrolls five text lines per wheel notch, which flies through a long map list. Tame it.
+		ImIO.AddMouseWheelDelta(-event.X*mouseWheelScale, event.Y*mouseWheelScale)
 	})
 
 	gcontext.RegisterListener(func(event gcontext.KeyEvent) {
