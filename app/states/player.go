@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
@@ -112,8 +113,11 @@ type Player struct {
 	objectsAlpha    *animation.Glider
 	objectContainer *containers.HitObjectContainer
 
-	MapEnd      float64
-	RunningTime float64
+	MapEnd              float64
+	RunningTime         float64
+	resultsWaiting      bool
+	resultsDismissed    bool
+	replaySaveAttempted bool
 
 	startOffset float64
 	lateStart   bool
@@ -130,9 +134,20 @@ type Player struct {
 	failOY           *animation.Glider
 	failRotation     *animation.Glider
 
-	failing bool
-	failAt  float64
-	failed  bool
+	failing           bool
+	failAt            float64
+	failed            bool
+	pauseMenu         atomic.Bool
+	failMenu          atomic.Bool
+	menuSelected      int
+	menuMouseDown     bool
+	menuCursorVisible bool
+	menuError         string
+	menuLastMouseX    float32
+	menuLastMouseY    float32
+	restartRequested  atomic.Bool
+	disposed          atomic.Bool
+	updateDone        chan struct{}
 
 	mProfiler *frame.Counter
 	mStats1   *runtime.MemStats
@@ -275,7 +290,13 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 		player.controller.SetBeatMap(player.bMap)
 		player.controller.InitCursors()
-		player.overlay = overlays.NewScoreOverlay(player.controller.(*dance.PlayerController).GetRuleset(), player.controller.GetCursors()[0])
+		scoreOverlay := overlays.NewScoreOverlay(player.controller.(*dance.PlayerController).GetRuleset(), player.controller.GetCursors()[0])
+		player.overlay = scoreOverlay
+		scoreOverlay.SetResultDismissHandler(func() {
+			player.resultsDismissed = true
+			player.resultsWaiting = false
+			player.MapEnd = player.progressMsF
+		})
 	} else if settings.KNOCKOUT {
 		controller := dance.NewReplayController()
 		player.controller = controller
@@ -284,7 +305,12 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 		player.controller.InitCursors()
 
 		if settings.PLAYERS == 1 {
-			player.overlay = overlays.NewScoreOverlay(player.controller.(*dance.ReplayController).GetRuleset(), player.controller.GetCursors()[0])
+			scoreOverlay := overlays.NewScoreOverlay(player.controller.(*dance.ReplayController).GetRuleset(), player.controller.GetCursors()[0])
+			player.overlay = scoreOverlay
+			scoreOverlay.SetResultDismissHandler(func() {
+				player.resultsDismissed = true
+				player.MapEnd = player.progressMsF
+			})
 		} else {
 			player.overlay = overlays.NewKnockoutOverlay(controller.(*dance.ReplayController))
 		}
@@ -295,6 +321,7 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 	}
 
 	player.lastTime = -1
+	player.resultsWaiting = settings.Gameplay.ShowResultsScreen && player.overlay != nil && !settings.RECORD
 
 	player.objectContainer = containers.NewHitObjectContainer(beatMap)
 
@@ -533,13 +560,23 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 		return player
 	}
 
+	player.updateDone = make(chan struct{})
+
 	goroutines.RunOS(func() {
+		defer close(player.updateDone)
+
 		var lastTimeNano = qpc.GetNanoTime()
 
-		for !gcontext.ShouldClose() {
+		for !gcontext.ShouldClose() && !player.disposed.Load() {
 			currentTimeNano := qpc.GetNanoTime()
 
 			delta := float64(currentTimeNano-lastTimeNano) / 1000000.0
+
+			if player.pauseMenu.Load() || player.failMenu.Load() {
+				lastTimeNano = currentTimeNano
+				player.updateLimiter.Sync()
+				continue
+			}
 
 			player.profilerU.PutSample(delta)
 
@@ -611,6 +648,14 @@ func (player *Player) trySetupFail() {
 				}
 
 				log.Println("Player failed!")
+				player.resultsWaiting = false
+
+				if controller, ok := player.controller.(*dance.PlayerController); ok && !player.replaySaveAttempted {
+					player.replaySaveAttempted = true
+					if err := controller.SaveReplay(); err != nil {
+						log.Println("Failed to save local replay after fail:", err)
+					}
+				}
 
 				sO.Fail(true)
 
@@ -663,6 +708,17 @@ func (player *Player) Update(delta float64) bool {
 	player.updateMain(delta)
 
 	if player.progressMsF >= player.MapEnd {
+		if player.resultsWaiting && !player.resultsDismissed {
+			return false
+		}
+		if settings.PLAY && !player.replaySaveAttempted {
+			if controller, ok := player.controller.(*dance.PlayerController); ok {
+				player.replaySaveAttempted = true
+				if err := controller.SaveReplay(); err != nil {
+					log.Println("Failed to save local replay:", err)
+				}
+			}
+		}
 		player.musicPlayer.Stop()
 		bass.StopLoops()
 
@@ -721,6 +777,10 @@ func (player *Player) updateMain(delta float64) {
 		}
 
 		player.failed = true
+		if !settings.RECORD {
+			player.failMenu.Store(true)
+			player.menuSelected = 0
+		}
 	}
 
 	speedAdjust := mutils.Lerp(1, settings.SPEED, player.speedGlider.GetValue())
@@ -768,6 +828,15 @@ func (player *Player) updateMain(delta float64) {
 
 	if player.overlay != nil && !player.lateStart {
 		player.overlay.Update(player.progressMsF)
+	}
+
+	if !player.replaySaveAttempted && player.progressMsF >= player.mapEndL && settings.PLAY {
+		if controller, ok := player.controller.(*dance.PlayerController); ok {
+			player.replaySaveAttempted = true
+			if err := controller.SaveReplay(); err != nil {
+				log.Println("Failed to save local replay:", err)
+			}
+		}
 	}
 
 	player.updateMusic(delta)
@@ -968,6 +1037,7 @@ func (player *Player) Draw(d float64) {
 
 	player.DrawMain(d)
 	player.drawDebug()
+	player.drawGameMenu()
 
 	profiler.EndGroup()
 }
@@ -1226,8 +1296,277 @@ func (player *Player) traverseGraph(ident int, node *profiler.PNode, draw func(f
 	}
 }
 
+func (player *Player) HandleMenuKey(name string) bool {
+	if settings.RECORD {
+		return false
+	}
+
+	if name == "ESCAPE" {
+		if player.failMenu.Load() {
+			// Nothing to resume after a fail: ESC simply goes back to the launcher.
+			gcontext.SetShouldClose(true)
+			return true
+		}
+
+		if player.pauseMenu.Load() {
+			player.resume()
+			return true
+		}
+
+		if resultOverlay, ok := player.overlay.(*overlays.ScoreOverlay); ok && resultOverlay.HasActiveResultsPanel() {
+			return false
+		}
+
+		if !settings.PLAY {
+			gcontext.SetShouldClose(true)
+			return true
+		}
+
+		player.menuSelected = 0
+		player.menuError = ""
+		player.pauseMenu.Store(true)
+		player.musicPlayer.Pause()
+
+		return true
+	}
+
+	if !player.pauseMenu.Load() && !player.failMenu.Load() {
+		return false
+	}
+
+	itemCount := len(player.menuItems())
+
+	switch name {
+	case "UP":
+		player.menuSelected = (player.menuSelected - 1 + itemCount) % itemCount
+	case "DOWN":
+		player.menuSelected = (player.menuSelected + 1) % itemCount
+	case "RETURN", "ENTER", "KP_ENTER", "NUMPADENTER":
+		player.activateMenuItem()
+	}
+
+	return true
+}
+
+// menuItems returns the labels of the entry list of the currently open menu.
+func (player *Player) menuItems() []string {
+	if player.failMenu.Load() {
+		return []string{"Retry", "Back to launcher"}
+	}
+
+	return []string{"Resume", "Retry", "Back to launcher"}
+}
+
+func (player *Player) resume() {
+	player.pauseMenu.Store(false)
+	player.musicPlayer.Resume()
+	player.hideMenuPointer()
+}
+
+func (player *Player) activateMenuItem() {
+	if player.failMenu.Load() {
+		switch player.menuSelected {
+		case 0:
+			player.restartGame()
+		case 1:
+			gcontext.SetShouldClose(true)
+		}
+
+		return
+	}
+
+	switch player.menuSelected {
+	case 0:
+		player.resume()
+	case 1:
+		player.restartGame()
+	case 2:
+		gcontext.SetShouldClose(true)
+	}
+}
+
+// restartGame only raises a flag. The main loop notices it, disposes this player and builds a fresh one inside the
+// same window, so retrying does not have to start a new process (and window) anymore.
+func (player *Player) restartGame() {
+	player.restartRequested.Store(true)
+}
+
+// RestartRequested tells if the player asked to be started from the beginning.
+func (player *Player) RestartRequested() bool {
+	return player.restartRequested.Load()
+}
+
+func (player *Player) showMenuPointer() {
+	if player.menuCursorVisible {
+		return
+	}
+	if controller, ok := player.controller.(*dance.PlayerController); ok {
+		controller.ReleaseMouseCapture()
+	}
+	gcontext.SetRawInput(false)
+	gcontext.SetCursorVisible(true)
+	player.menuCursorVisible = true
+
+	player.menuLastMouseX, player.menuLastMouseY = gcontext.GetCursorPosition()
+}
+
+func (player *Player) hideMenuPointer() {
+	if !player.menuCursorVisible {
+		return
+	}
+	if controller, ok := player.controller.(*dance.PlayerController); ok {
+		controller.ReleaseMouseCapture()
+	}
+	gcontext.SetCursorVisible(false)
+	player.menuCursorVisible = false
+}
+
+// Menu palette, kept in sync with the launcher (pink accent on a deep violet base).
+const (
+	menuPanelW = 700.0
+	menuRowW   = 560.0
+	menuRowH   = 64.0
+	menuRowGap = 14.0
+)
+
+func (player *Player) drawGameMenu() {
+	paused := player.pauseMenu.Load()
+	failed := player.failMenu.Load()
+	if !paused && !failed {
+		return
+	}
+
+	player.showMenuPointer()
+
+	batch := player.batch
+	previousCamera := batch.Projection
+	batch.SetCamera(player.uiCamera.GetProjectionView())
+	batch.Begin()
+	batch.ResetTransform()
+
+	pixel := graphics.Pixel.GetRegion()
+	centerX := player.ScaledWidth / 2
+	centerY := player.ScaledHeight / 2
+
+	drawRect := func(x, y, width, height, r, g, b, a float64) {
+		batch.ResetTransform()
+		batch.SetColor(r, g, b, a)
+		batch.SetScale(width/2, height/2)
+		batch.SetTranslation(vector.NewVec2d(x, y))
+		batch.DrawUnit(pixel)
+	}
+
+	items := player.menuItems()
+
+	panelH := 250.0 + float64(len(items))*(menuRowH+menuRowGap)
+	panelTop := centerY + panelH/2
+
+	// dim the playfield, then the panel with a thin accent line on top
+	drawRect(centerX, centerY, player.ScaledWidth, player.ScaledHeight, 0.02, 0.015, 0.04, 0.78)
+	drawRect(centerX, centerY, menuPanelW+8, panelH+8, 0.00, 0.00, 0.00, 0.35)
+	drawRect(centerX, centerY, menuPanelW, panelH, 0.075, 0.065, 0.105, 0.98)
+	drawRect(centerX, panelTop-3, menuPanelW, 6, 1.0, 0.40, 0.67, 1.0)
+
+	fontFace := font.GetFont("Quicksand Bold")
+
+	title := "PAUSED"
+	subtitle := "Take a breather"
+	if failed {
+		title = "YOU FAILED"
+		subtitle = "Give it another go"
+	}
+
+	batch.ResetTransform()
+	batch.SetColor(1, 1, 1, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-70, vector.Centre, 44, false, title)
+
+	batch.ResetTransform()
+	batch.SetColor(1.0, 0.40, 0.67, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-112, vector.Centre, 22, false, subtitle)
+
+	batch.ResetTransform()
+	batch.SetColor(0.62, 0.60, 0.70, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-146, vector.Centre, 18, false, player.mapFullName)
+
+	mouseX, mouseY := gcontext.GetCursorPosition()
+	mouseUIX := float64(mouseX) * 1080 / settings.Graphics.GetHeightF()
+	mouseUIY := player.ScaledHeight - float64(mouseY)*1080/settings.Graphics.GetHeightF()
+
+	// The mouse only takes over the selection when it actually moves, so arrow keys keep working
+	// while the pointer rests on top of an entry.
+	mouseMoved := mouseX != player.menuLastMouseX || mouseY != player.menuLastMouseY
+	player.menuLastMouseX, player.menuLastMouseY = mouseX, mouseY
+
+	mouseDown := gcontext.GetLeftClick()
+	clicked := mouseDown && !player.menuMouseDown
+	player.menuMouseDown = mouseDown
+
+	firstY := panelTop - 215
+
+	activate := -1
+
+	for i, label := range items {
+		y := firstY - float64(i)*(menuRowH+menuRowGap)
+
+		hovered := mouseUIX >= centerX-menuRowW/2 && mouseUIX <= centerX+menuRowW/2 && mouseUIY >= y-menuRowH/2 && mouseUIY <= y+menuRowH/2
+
+		if hovered && mouseMoved {
+			player.menuSelected = i
+		}
+
+		selected := i == player.menuSelected
+
+		if selected {
+			drawRect(centerX, y, menuRowW, menuRowH, 1.0, 0.40, 0.67, 1.0)
+			drawRect(centerX-menuRowW/2+5, y, 10, menuRowH, 1.0, 1.0, 1.0, 0.85)
+		} else {
+			drawRect(centerX, y, menuRowW, menuRowH, 0.145, 0.130, 0.195, 1.0)
+		}
+
+		batch.ResetTransform()
+		if selected {
+			batch.SetColor(0.12, 0.02, 0.07, 1)
+		} else {
+			batch.SetColor(0.92, 0.90, 0.97, 1)
+		}
+		fontFace.DrawOrigin(batch, centerX, y, vector.Centre, 28, false, label)
+
+		if clicked && hovered {
+			activate = i
+		}
+	}
+
+	batch.ResetTransform()
+	batch.SetColor(0.50, 0.48, 0.58, 1)
+	fontFace.DrawOrigin(batch, centerX, panelTop-panelH+34, vector.Centre, 17, false, "Up / Down + Enter, or click an entry   |   Esc: "+map[bool]string{true: "back", false: "resume"}[failed])
+
+	batch.ResetTransform()
+	batch.SetColor(1, 1, 1, 1)
+	batch.End()
+	batch.SetCamera(previousCamera)
+
+	// Run the action after the batch is closed: restarting tears this player down on the next main loop pass.
+	if activate >= 0 {
+		player.menuSelected = activate
+		player.activateMenuItem()
+	}
+}
+
 func (player *Player) Show() {}
 
 func (player *Player) Hide() {}
 
-func (player *Player) Dispose() {}
+// Dispose stops the update thread of this player and waits (briefly) for it to finish, which also stops the music.
+func (player *Player) Dispose() {
+	player.disposed.Store(true)
+
+	player.hideMenuPointer()
+
+	if player.updateDone != nil {
+		select {
+		case <-player.updateDone:
+		case <-time.After(1500 * time.Millisecond):
+			log.Println("Timed out while waiting for the update thread to stop")
+		}
+	}
+}

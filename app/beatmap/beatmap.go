@@ -95,6 +95,16 @@ func (beatMap *BeatMap) Reset() {
 	}
 }
 
+// ResetForReload drops everything produced by parsing the .osu file, so the same map can be parsed and played again
+// inside the running process (used by the in-game "Retry").
+func (beatMap *BeatMap) ResetForReload() {
+	beatMap.Clear()
+	beatMap.Pauses = nil
+	beatMap.Queue = nil
+	beatMap.processed = nil
+	beatMap.stackCalcCache = make(map[int64]bool)
+}
+
 func (beatMap *BeatMap) Clear() {
 	beatMap.HitObjects = make([]objects.IHitObject, 0)
 	beatMap.Timings.Clear()

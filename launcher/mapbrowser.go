@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/AllenDang/cimgui-go/imgui"
 
@@ -278,6 +279,15 @@ type mapBrowser struct {
 	l   *launcher
 	sel *songSelectPopup
 
+	// infoTab uses 0 for Details and 1 for Ranking. Local ranking is the
+	// default; the other scopes are presentation hooks for future online data.
+	infoTab      int
+	rankingScope int
+
+	localReplays        []localReplayEntry
+	localReplayMD5      string
+	localReplaysUpdated time.Time
+
 	searchStr    string
 	searchActive bool
 	focusSearch  bool
@@ -311,12 +321,14 @@ type mapBrowser struct {
 
 func newMapBrowser(l *launcher, sel *songSelectPopup) *mapBrowser {
 	b := &mapBrowser{
-		l:           l,
-		sel:         sel,
-		thumbs:      newThumbCache(),
-		trunc:       make(map[truncKey]string),
-		needRebuild: true,
-		centerNext:  true,
+		l:            l,
+		sel:          sel,
+		thumbs:       newThumbCache(),
+		trunc:        make(map[truncKey]string),
+		needRebuild:  true,
+		centerNext:   true,
+		infoTab:      1,
+		rankingScope: 1,
 	}
 
 	if l.bld.currentMap != nil {

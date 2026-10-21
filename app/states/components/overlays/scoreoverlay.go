@@ -118,8 +118,11 @@ type ScoreOverlay struct {
 	created     bool
 	skipTo      float64
 
-	audioDisabled bool
-	beatmapEnd    float64
+	audioDisabled   bool
+	beatmapEnd      float64
+	dismissResult   func()
+	lastPointerDown bool
+	resultDismissed bool
 
 	circularMetre *texture.TextureRegion
 
@@ -549,6 +552,19 @@ func (overlay *ScoreOverlay) Update(time float64) {
 		}
 	}
 
+	pointerDown := gcontext.GetLeftClick() || gcontext.GetRightClick()
+	pointerClicked := pointerDown && !overlay.lastPointerDown
+	overlay.lastPointerDown = pointerDown
+	if overlay.panel != nil && !overlay.resultDismissed {
+		confirm := gcontext.GetKeyState(sdl.K_RETURN) == gcontext.Press || gcontext.GetKeyState(sdl.K_ESCAPE) == gcontext.Press
+		if pointerClicked || confirm {
+			overlay.resultDismissed = true
+			if overlay.dismissResult != nil {
+				overlay.dismissResult()
+			}
+		}
+	}
+
 	overlay.results.Update(time)
 	overlay.hitErrorMeter.Update(time)
 	overlay.aimErrorMeter.Update(time)
@@ -594,11 +610,7 @@ func (overlay *ScoreOverlay) updateNormal(time float64) {
 			}
 		}
 
-		if settings.RECORD {
-			createPanel()
-		} else {
-			go createPanel()
-		}
+		createPanel()
 	}
 
 	if overlay.flashlight != nil && time >= 0 {
@@ -777,6 +789,8 @@ func (overlay *ScoreOverlay) DrawHUD(batch *batch.QuadBatch, _ []color2.Color, a
 	if overlay.panel != nil {
 		settings.Playfield.Bloom.Enabled = false
 		overlay.panel.Draw(batch, overlay.resultsFade.GetValue())
+		batch.SetColor(1, 1, 1, overlay.resultsFade.GetValue())
+		font.GetFont("SBFont").DrawOrigin(batch, overlay.ScaledWidth/2, overlay.ScaledHeight-22, vector.Centre, 18, true, "Clique ou pressione Enter para continuar")
 	}
 
 	overlay.customStats.Draw(batch, alpha, overlay.ScaledWidth, overlay.ScaledHeight)
@@ -1127,6 +1141,14 @@ func (overlay *ScoreOverlay) DisableAudioSubmission(b bool) {
 
 func (overlay *ScoreOverlay) SetBeatmapEnd(end float64) {
 	overlay.beatmapEnd = end
+}
+
+func (overlay *ScoreOverlay) SetResultDismissHandler(handler func()) {
+	overlay.dismissResult = handler
+}
+
+func (overlay *ScoreOverlay) HasActiveResultsPanel() bool {
+	return overlay.panel != nil && !overlay.resultDismissed && !overlay.failed
 }
 
 func (overlay *ScoreOverlay) ShouldDrawHUDBeforeCursor() bool {

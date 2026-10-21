@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Zyko0/go-sdl3/sdl"
 
@@ -130,6 +131,12 @@ func SDLCreateWindow(width, height int, title string, props OptionalProps) {
 		if err = sdlWindow.Show(); err != nil {
 			return
 		}
+
+		// The fullscreen transition is applied asynchronously by the OS, and only completes once window events
+		// are pumped. Without this the window would sit in its windowed state for the whole loading phase.
+		if props.Fullscreen {
+			waitForFullscreen(3 * time.Second)
+		}
 	}
 
 	if !offscreenCtx {
@@ -145,6 +152,25 @@ func SDLCreateWindow(width, height int, title string, props OptionalProps) {
 	_, err = sdl.GL_CreateContext(sdlWindow)
 	if err != nil {
 		panic(err)
+	}
+}
+
+// waitForFullscreen pumps window events until the pending fullscreen transition is applied or the timeout expires.
+func waitForFullscreen(timeout time.Duration) {
+	if offscreenCtx || sdlWindow == nil {
+		return
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for {
+		HandleEvents()
+
+		if sdlWindow.Flags()&sdl.WINDOW_FULLSCREEN != 0 || time.Now().After(deadline) {
+			return
+		}
+
+		time.Sleep(2 * time.Millisecond)
 	}
 }
 
