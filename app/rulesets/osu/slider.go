@@ -121,7 +121,7 @@ func (slider *Slider) UpdateClickFor(player *difficultyPlayer, time int64) bool 
 
 	clicked := player.leftCondE || player.rightCondE
 
-	inRadius := player.cursor.RawPosition.Dst(position) <= player.diff.GetRadius()
+	inRadius := player.cursor.RawPosition.Dst(position) <= player.getHitRadius()
 
 	if clicked && !state.isStartHit && (!state.isHit || player.diff.CheckModActive(difficulty.Lazer)) {
 		action := slider.ruleSet.CanBeHit(time, slider, player)
@@ -186,7 +186,7 @@ func (slider *Slider) UpdateClickFor(player *difficultyPlayer, time int64) bool 
 func (slider *Slider) lazerPostHeadProcess(player *difficultyPlayer, state *sliderstate, time int64) {
 	sliderPosition := slider.hitSlider.GetStackedPositionAtModLazer(float64(time), player.diff)
 
-	followRadiusFull := player.diff.GetRadius() * 2.4
+	followRadiusFull := player.getHitRadius() * 2.4
 
 	if player.cursor.RawPosition.Dst(sliderPosition) > followRadiusFull {
 		return
@@ -209,7 +209,7 @@ func (slider *Slider) lazerPostHeadProcess(player *difficultyPlayer, state *slid
 
 	slider.processTicksLazer(player, state, time, allTicksInRange, sliderPosition)
 
-	if allTicksInRange || player.cursor.RawPosition.Dst(sliderPosition) <= player.diff.GetRadius() {
+	if allTicksInRange || player.cursor.RawPosition.Dst(sliderPosition) <= player.getHitRadius() {
 		state.sliding = true
 		state.slideStart = time
 
@@ -269,7 +269,7 @@ func (slider *Slider) UpdateFor(player *difficultyPlayer, time int64, processSli
 		mouseDownAcceptable = mouseDownAcceptable || mouseDownAcceptableSwap || player.diff.CheckModActive(difficulty.Relax)
 
 		allowable := mouseDownAcceptable
-		radiusNeeded := player.diff.GetRadius()
+		radiusNeeded := player.getHitRadius()
 
 		if player.diff.CheckModActive(difficulty.Lazer) {
 			if state.sliding {
