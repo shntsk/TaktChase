@@ -47,7 +47,7 @@ func (circle *Circle) UpdateClickFor(player *difficultyPlayer, time int64) bool 
 
 		clicked := player.leftCondE || player.rightCondE
 
-		inRange := player.cursor.RawPosition.Dst(position) <= player.diff.GetRadius()
+		inRange := player.cursor.RawPosition.Dst(position) <= player.getHitRadius()
 
 		if clicked {
 			action := circle.ruleSet.CanBeHit(time, circle, player)
