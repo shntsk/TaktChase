@@ -67,6 +67,37 @@ jobs:
           ./dist-linux.sh 0.0.1
           test -s "dist/artifacts/taktchase-0.0.1-linux.zip"
 
+
+  build-archlinux:
+    name: Arch Linux x86_64
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install native dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel git curl unzip pkgconf \
+            libx11 libxrandr libxcursor libxinerama libxi libxext libxxf86vm \
+            libxcb libxkbcommon libxkbcommon-x11 wayland wayland-protocols \
+            mesa libglvnd gtk3 alsa-lib vulkan-headers
+      - uses: actions/checkout@v4
+      - name: Install Go
+        run: |
+          curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+      - name: Verify Go modules
+        run: go mod verify
+      - name: Build desktop package
+        env:
+          SKIP_FFMPEG: "1"
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./dist-linux.sh 0.0.1
+          test -s "dist/artifacts/taktchase-0.0.1-linux.zip"
+
   build-windows:
     name: Windows x86_64
     runs-on: windows-latest
