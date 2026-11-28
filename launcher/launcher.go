@@ -185,79 +185,8 @@ type launcher struct {
 }
 
 func StartLauncher() {
-	defer func() {
-		var err any
-		var stackTrace []string
-
-		if err = recover(); err != nil {
-			stackTrace = goroutines.GetStackTrace(4)
-		}
-
-		closeHandler(err, stackTrace)
-	}()
-
-	goroutines.SetCrashHandler(closeHandler)
-
-	cTime := time.Now()
-
-	launcher := &launcher{
-		bld:        newBuilder(),
-		popupStack: make([]iPopup, 0),
-		winter:     (cTime.Month() == 12 && cTime.Day() >= 6) || (cTime.Month() < 2),
-		christmas:  cTime.Month() == 12 && cTime.Day() >= 6,
-		cHold:      make(map[string]*bool),
-	}
-
-	platform.StartLogging("launcher")
-
-	loadLauncherConfig()
-
-	settings.CreateDefault()
-
-	settings.Playfield.Background.Triangles.Enabled = true
-	settings.Playfield.Background.Triangles.DrawOverBlur = true
-	settings.Playfield.Background.Blur.Enabled = false
-	settings.Playfield.Background.Parallax.Enabled = true
-	settings.Playfield.Background.Parallax.Amount = 0.02
-
-	assets.Init(build.Stream == "Dev")
-
-	goroutines.RunMain(func() {
-		defer func() {
-			if err := recover(); err != nil {
-				stackTrace := goroutines.GetStackTrace(4)
-				closeHandler(err, stackTrace)
-			}
-		}()
-
-		goroutines.CallMain(launcher.startContext)
-
-		for !gcontext.ShouldClose() {
-			goroutines.CallMain(func() {
-				if !gcontext.IsMinimized() {
-					if !gcontext.IsFocused() {
-						gcontext.SetSwapInterval(2)
-					} else {
-						gcontext.SetSwapInterval(1)
-					}
-				} else {
-					gcontext.SetSwapInterval(int(launcher.refreshRate / 10))
-				}
-				launcher.Draw()
-				gcontext.SwapBuffers()
-				gcontext.HandleEvents()
-			})
-		}
-	})
-
-	// Save configs on exit
-	closeWatcher()
-	saveLauncherConfig()
-	if launcher.currentConfig != nil {
-		launcher.currentConfig.Save("", false)
-	}
+	startGioLauncher()
 }
-
 func closeHandler(err any, stackTrace []string) {
 	if err != nil {
 		log.Println("panic:", err)
