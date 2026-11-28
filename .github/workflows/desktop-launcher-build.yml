@@ -55,10 +55,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - name: Resolve Go modules
-        run: |
-          go get github.com/shntsk/taktchase/launcher
-          git diff -- go.mod go.sum
+      - name: Verify Go modules
+        run: go mod verify
       - name: Build desktop package
         env:
           SKIP_FFMPEG: "1"
