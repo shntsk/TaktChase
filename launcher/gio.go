@@ -716,7 +716,10 @@ func (ui *gioLauncherUI) drawCompactLibrary(gtx layout.Context) layout.Dimension
 							return ui.text(gtx, "Drop .osz files into the Songs folder to import maps.", 10, color.NRGBA{R: 132, G: 143, B: 169, A: 255})
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return ui.button(gtx, &ui.reloadMaps, "Refresh", false)
+							if ui.button(gtx, &ui.reloadMaps, "Refresh", false) {
+								ui.loadMaps()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
 						}),
 					)
 				}),
@@ -1516,7 +1519,7 @@ func (ui *gioLauncherUI) drawLauncherPreferences(gtx layout.Context) layout.Dime
 							if volume, err := strconv.Atoi(ui.launcherVolume.Text()); err == nil {
 								launcherConfig.PreviewVolume = math.Max(0, math.Min(1, float64(volume)/100))
 							}
-							return layout.Dimensions{Size: gtx.Constraints.Min}
+							return dims
 						}),
 					)
 				}),
@@ -1698,8 +1701,7 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 						layout.Rigid(gapHeight(10)),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							style := material.Editor(ui.theme, &ui.profileName, "New profile name")
-							style.Layout(gtx)
-							return layout.Dimensions{Size: gtx.Constraints.Min}
+							return style.Layout(gtx)
 						}),
 						layout.Rigid(gapHeight(8)),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
