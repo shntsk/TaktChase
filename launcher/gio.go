@@ -30,6 +30,7 @@ import (
 	"github.com/shntsk/taktchase/app/beatmap"
 	"github.com/shntsk/taktchase/app/beatmap/difficulty"
 	"github.com/shntsk/taktchase/app/database"
+	"github.com/shntsk/taktchase/app/osuapi"
 	"github.com/shntsk/taktchase/app/settings"
 	"github.com/shntsk/taktchase/build"
 	"github.com/shntsk/taktchase/framework/env"
@@ -113,9 +114,16 @@ type gioLauncherUI struct {
 	settingsCategory string
 	settingsButtons   map[string]*widget.Clickable
 	settingsFields    []*gioSettingField
-	settingsList      widget.List
 	settingsBool      map[string]*widget.Bool
 	launcherVolume    widget.Editor
+	credentialHelp   widget.Clickable
+	authorize        widget.Clickable
+	resetTokens      widget.Clickable
+	endEditor        widget.Editor
+	startEditor      widget.Editor
+	offsetEditor     widget.Editor
+	pitchEditor      widget.Editor
+	speedEditor       widget.Editor
 
 	statusMu      sync.RWMutex
 	status        string
@@ -252,6 +260,16 @@ func newGioLauncherUI(l *launcher) *gioLauncherUI {
 	ui.profileName.SetText("My profile")
 	ui.launcherVolume.SingleLine = true
 	ui.launcherVolume.SetText(strconv.Itoa(int(launcherConfig.PreviewVolume * 100)))
+	ui.speedEditor.SingleLine = true
+	ui.pitchEditor.SingleLine = true
+	ui.offsetEditor.SingleLine = true
+	ui.startEditor.SingleLine = true
+	ui.endEditor.SingleLine = true
+	ui.speedEditor.SetText(strconv.FormatFloat(l.bld.speed.value, 'f', 2, 64))
+	ui.pitchEditor.SetText(strconv.FormatFloat(l.bld.pitch.value, 'f', 2, 64))
+	ui.offsetEditor.SetText(strconv.FormatInt(int64(l.bld.offset.value), 10))
+	ui.startEditor.SetText(strconv.FormatInt(int64(l.bld.start.value), 10))
+	ui.endEditor.SetText(strconv.FormatInt(int64(l.bld.end.value), 10))
 	ui.mapList.List.Axis = layout.Vertical
 	ui.modsList.List.Axis = layout.Vertical
 	ui.settingsNavList.List.Axis = layout.Vertical
@@ -491,31 +509,28 @@ func (ui *gioLauncherUI) navButton(gtx layout.Context, page gioPage, label, numb
 		bg = color.NRGBA{R: 43, G: 47, B: 76, A: 255}
 		fg = color.NRGBA{R: 222, G: 219, B: 255, A: 255}
 	}
-	dims := gioSurface(gtx, bg, unit.Dp(11), func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min.Y = gtx.Dp(44)
-		gtx.Constraints.Max.Y = gtx.Dp(44)
-		return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return ui.text(gtx, number, 10, color.NRGBA{R: 117, G: 127, B: 153, A: 255})
-				}),
-				layout.Rigid(gapWidth(10)),
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return ui.text(gtx, label, 13, fg)
-				}),
-			)
+	dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+		return gioSurface(gtx, bg, unit.Dp(11), func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.Y = gtx.Dp(44)
+			gtx.Constraints.Max.Y = gtx.Dp(44)
+			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return ui.text(gtx, number, 10, color.NRGBA{R: 117, G: 127, B: 153, A: 255})
+					}),
+					layout.Rigid(gapWidth(10)),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return ui.text(gtx, label, 13, fg)
+					}),
+				)
+			})
 		})
-	})
-	_ = dims
-	material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
-		return layout.Dimensions{Size: gtx.Constraints.Max}
 	})
 	if click.Clicked(gtx) {
 		ui.page = page
 	}
 	return dims
 }
-
 func (ui *gioLauncherUI) drawPage(gtx layout.Context) layout.Dimensions {
 	switch ui.page {
 	case gioPageHome:
@@ -671,45 +686,54 @@ func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
 	return material.List(ui.theme, &ui.mapList).Layout(gtx, len(ui.filteredMaps), func(gtx layout.Context, index int) layout.Dimensions {
 		bMap := ui.filteredMaps[index]
 		key := bMap.MD5
-		if key == "" { key = bMap.Dir + "/" + bMap.Difficulty }
-		click, ok := ui.mapButtons[key]
-		if !ok {
+		if key == "" {
+			key = bMap.Dir + "/" + bMap.Difficulty
+		}
+		click := ui.mapButtons[key]
+		if click == nil {
 			click = new(widget.Clickable)
 			ui.mapButtons[key] = click
 		}
-		selected := ui.l.bld.currentMap != nil && ui.l.bld.currentMap.MD5 == bMap.MD5
+		selected := false
+		if current := ui.l.bld.currentMap; current != nil {
+			if current.MD5 != "" && bMap.MD5 != "" {
+				selected = current.MD5 == bMap.MD5
+			} else {
+				selected = current.Dir == bMap.Dir && current.Difficulty == bMap.Difficulty
+			}
+		}
 		background := color.NRGBA{R: 29, G: 35, B: 51, A: 255}
 		if selected {
 			background = color.NRGBA{R: 47, G: 49, B: 83, A: 255}
 		}
 
-		dims := gioSurface(gtx, background, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints.Min.Y = gtx.Dp(66)
-			gtx.Constraints.Max.Y = gtx.Dp(66)
-			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(7), Bottom: unit.Dp(7)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return ui.text(gtx, bMap.Name, 13, color.NRGBA{R: 237, G: 239, B: 249, A: 255})
-							}),
-							layout.Rigid(gapHeight(3)),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return ui.text(gtx, bMap.Artist+"  ·  "+bMap.Difficulty, 10, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
-							}),
-						)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						stars := "—"
-						if bMap.Stars >= 0 { stars = fmt.Sprintf("%.2f★", bMap.Stars) }
+		dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+			return gioSurface(gtx, background, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.Y = gtx.Dp(66)
+				gtx.Constraints.Max.Y = gtx.Dp(66)
+				return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(7), Bottom: unit.Dp(7)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return ui.text(gtx, bMap.Name, 13, color.NRGBA{R: 237, G: 239, B: 249, A: 255})
+								}),
+								layout.Rigid(gapHeight(3)),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return ui.text(gtx, bMap.Artist+"  ·  "+bMap.Difficulty, 10, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+								}),
+							)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							stars := "—"
+							if bMap.Stars >= 0 {
+								stars = fmt.Sprintf("%.2f★", bMap.Stars)
+							}
 						return ui.text(gtx, stars, 12, color.NRGBA{R: 184, G: 175, B: 255, A: 255})
-					}),
-				)
+						}),
+					)
+				})
 			})
-		})
-		_ = dims
-		material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: gtx.Constraints.Max}
 		})
 		if click.Clicked(gtx) {
 			ui.l.bld.setMap(bMap)
@@ -721,8 +745,10 @@ func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
 		})
 	})
 }
-
 func (ui *gioLauncherUI) drawSelectedMap(gtx layout.Context) layout.Dimensions {
+	if launcherConfig.CurrentMode == Replay {
+		return ui.drawReplayPanel(gtx)
+	}
 	return gioSurface(gtx, color.NRGBA{R: 23, G: 28, B: 41, A: 255}, unit.Dp(18), func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(18), Bottom: unit.Dp(18), Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -740,27 +766,255 @@ func (ui *gioLauncherUI) drawSelectedMap(gtx layout.Context) layout.Dimensions {
 				layout.Rigid(gapHeight(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.button(gtx, &ui.openSpeed, "Speed & pitch", false) }),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.openSpeed, "Speed & timing", false) {
+								ui.speedEditor.SetText(strconv.FormatFloat(ui.l.bld.speed.value, 'f', 2, 64))
+								ui.pitchEditor.SetText(strconv.FormatFloat(ui.l.bld.pitch.value, 'f', 2, 64))
+								ui.offsetEditor.SetText(strconv.FormatInt(int64(ui.l.bld.offset.value), 10))
+								ui.startEditor.SetText(strconv.FormatInt(int64(ui.l.bld.start.value), 10))
+								ui.endEditor.SetText(strconv.FormatInt(int64(ui.l.bld.end.value), 10))
+								ui.page = gioPageSpeed
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
 						layout.Rigid(gapWidth(8)),
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.button(gtx, &ui.openMods, "Mods", false) }),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.openMods, "Mods", false) {
+								ui.page = gioPageMods
+						}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
 					)
 				}),
 				layout.Rigid(gapHeight(10)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					ready := ui.l.canStart()
-					label := "Choose a map to continue"
-					if launcherConfig.CurrentMode == Replay {
-						label = "Choose a replay to continue"
+					if ui.l.canStart() {
+						return ui.text(gtx, "Ready to launch", 11, color.NRGBA{R: 140, G: 151, B: 176, A: 255})
 					}
-					if ready { label = "Ready to launch" }
-					return ui.text(gtx, label, 11, color.NRGBA{R: 140, G: 151, B: 176, A: 255})
+					return ui.text(gtx, "Choose a beatmap to continue", 11, color.NRGBA{R: 140, G: 151, B: 176, A: 255})
 				}),
 				layout.Rigid(gapHeight(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if ui.l.taktchaseRunning {
-						return ui.button(gtx, &ui.cancelButton, "Stop TaktChase", false)
+					_, _, _, running := ui.currentStatus()
+					if running {
+						if ui.button(gtx, &ui.cancelButton, "Stop TaktChase", false) {
+							ui.stopGame()
+						}
+						return layout.Dimensions{Size: gtx.Constraints.Min}
 					}
 					return ui.primaryButton(gtx, &ui.startButton, "Start TaktChase", ui.l.canStart())
+				}),
+			)
+		})
+	})
+}
+func (ui *gioLauncherUI) drawSpeed(gtx layout.Context) layout.Dimensions {
+	field := func(gtx layout.Context, title, hint string, editor *widget.Editor) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return ui.text(gtx, title, 11, color.NRGBA{R: 190, G: 198, B: 216, A: 255})
+			}),
+			layout.Rigid(gapHeight(6)),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				style := material.Editor(ui.theme, editor, hint)
+				style.TextSize = unit.Sp(13)
+				style.Layout(gtx)
+				return layout.Dimensions{Size: gtx.Constraints.Min}
+			}),
+		)
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return ui.heading(gtx, "Speed, pitch & timing", "Tune the session range, audio speed and local offset.")
+		}),
+		layout.Rigid(gapHeight(16)),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return gioSurface(gtx, color.NRGBA{R: 23, G: 28, B: 41, A: 255}, unit.Dp(16), func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(18), Bottom: unit.Dp(18), Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, "PLAYBACK", 10, color.NRGBA{R: 145, G: 156, B: 183, A: 255})
+						}),
+						layout.Rigid(gapHeight(10)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return field(gtx, "Speed multiplier", "1.00", &ui.speedEditor) }),
+								layout.Rigid(gapWidth(12)),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return field(gtx, "Pitch multiplier", "1.00", &ui.pitchEditor) }),
+							)
+						}),
+						layout.Rigid(gapHeight(18)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, "TIME RANGE & OFFSET", 10, color.NRGBA{R: 145, G: 156, B: 183, A: 255}) }),
+						layout.Rigid(gapHeight(10)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return field(gtx, "Start (seconds)", "0", &ui.startEditor) }),
+								layout.Rigid(gapWidth(12)),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return field(gtx, "End (seconds)", "0", &ui.endEditor) }),
+								layout.Rigid(gapWidth(12)),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return field(gtx, "Audio offset (ms)", "0", &ui.offsetEditor) }),
+							)
+						}),
+						layout.Rigid(gapHeight(12)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							state := ui.settingsBool["skip-map-intro"]
+							if state == nil { state = new(widget.Bool); ui.settingsBool["skip-map-intro"] = state }
+							state.Value = ui.l.bld.skip
+							style := material.CheckBox(ui.theme, state, "Skip intro and jump to the drain time")
+							style.Layout(gtx)
+							ui.l.bld.skip = state.Value
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									return ui.text(gtx, "Speed and pitch accept values from 0.10 to 3.00.", 10, color.NRGBA{R: 130, G: 142, B: 167, A: 255})
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if ui.button(gtx, &ui.cancelButton, "Reset", false) {
+										ui.l.bld.speed.value, ui.l.bld.speed.changed = ui.l.bld.speed.ogValue, false
+										ui.l.bld.pitch.value, ui.l.bld.pitch.changed = ui.l.bld.pitch.ogValue, false
+										ui.l.bld.offset.value, ui.l.bld.offset.changed = ui.l.bld.offset.ogValue, false
+										ui.l.bld.start.value, ui.l.bld.start.changed = ui.l.bld.start.ogValue, false
+										ui.l.bld.end.value, ui.l.bld.end.changed = ui.l.bld.end.ogValue, false
+										ui.l.bld.skip = false
+										ui.speedEditor.SetText(strconv.FormatFloat(ui.l.bld.speed.value, 'f', 2, 64))
+										ui.pitchEditor.SetText(strconv.FormatFloat(ui.l.bld.pitch.value, 'f', 2, 64))
+										ui.offsetEditor.SetText(strconv.FormatInt(int64(ui.l.bld.offset.value), 10))
+										ui.startEditor.SetText(strconv.FormatInt(int64(ui.l.bld.start.value), 10))
+										ui.endEditor.SetText(strconv.FormatInt(int64(ui.l.bld.end.value), 10))
+									}
+									return layout.Dimensions{Size: gtx.Constraints.Min}
+								}),
+								layout.Rigid(gapWidth(8)),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if ui.button(gtx, &ui.saveSettings, "Apply", true) {
+										ui.applySpeedAndTiming()
+										ui.page = gioPageHome
+									}
+									return layout.Dimensions{Size: gtx.Constraints.Min}
+								}),
+							)
+						}),
+					)
+				})
+			})
+		}),
+	)
+}
+
+func (ui *gioLauncherUI) applySpeedAndTiming() {
+	b := ui.l.bld
+	if value, err := strconv.ParseFloat(strings.TrimSpace(ui.speedEditor.Text()), 64); err == nil {
+		b.speed.value = min(max(value, 0.1), 3.0)
+		b.speed.changed = math.Abs(b.speed.value-b.speed.ogValue) > 0.001
+	}
+	if value, err := strconv.ParseFloat(strings.TrimSpace(ui.pitchEditor.Text()), 64); err == nil {
+		b.pitch.value = min(max(value, 0.1), 3.0)
+		b.pitch.changed = math.Abs(b.pitch.value-b.pitch.ogValue) > 0.001
+	}
+	if value, err := strconv.ParseInt(strings.TrimSpace(ui.startEditor.Text()), 10, 32); err == nil {
+		if b.currentMap != nil {
+			value = min(max(value, 0), int64(b.currentMap.Length/1000))
+		}
+		b.start.value = int32(value)
+		b.start.changed = b.start.value != b.start.ogValue
+	}
+	if value, err := strconv.ParseInt(strings.TrimSpace(ui.endEditor.Text()), 10, 32); err == nil {
+		if b.currentMap != nil {
+			value = min(max(value, 1), int64(b.currentMap.Length/1000))
+		}
+		b.end.value = int32(value)
+		b.end.changed = b.end.value != b.end.ogValue
+	}
+	if value, err := strconv.ParseInt(strings.TrimSpace(ui.offsetEditor.Text()), 10, 32); err == nil {
+		b.offset.value = int32(value)
+		b.offset.changed = b.offset.value != b.offset.ogValue
+	}
+	if b.currentMap != nil && b.offset.value != int32(b.currentMap.LocalOffset) {
+		b.currentMap.LocalOffset = int(b.offset.value)
+		database.UpdateLocalOffset(b.currentMap)
+	}
+	ui.setLoadState(false, "Session settings applied.", 1)
+}
+
+func (ui *gioLauncherUI) drawReplayPanel(gtx layout.Context) layout.Dimensions {
+	return gioSurface(gtx, color.NRGBA{R: 23, G: 28, B: 41, A: 255}, unit.Dp(18), func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(18), Bottom: unit.Dp(18), Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return ui.text(gtx, "REPLAY SESSION", 10, color.NRGBA{R: 145, G: 156, B: 183, A: 255})
+				}),
+				layout.Rigid(gapHeight(12)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					style := material.Editor(ui.theme, &ui.replayPath, "Path to .osr replay")
+					style.TextSize = unit.Sp(12)
+					style.Layout(gtx)
+					return layout.Dimensions{Size: gtx.Constraints.Min}
+				}),
+				layout.Rigid(gapHeight(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.openReplay, "Browse…", false) {
+								ui.chooseReplay()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(8)),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.loadReplay, "Load replay", true) {
+								ui.loadReplayFile(strings.TrimSpace(ui.replayPath.Text()))
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
+				}),
+				layout.Rigid(gapHeight(18)),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					if ui.l.bld.currentReplay == nil || ui.l.bld.currentMap == nil {
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, "Load a replay to see its player and beatmap details.", 12, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+						})
+					}
+					replay := ui.l.bld.currentReplay
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, ui.l.bld.currentMap.Name, 20, color.NRGBA{R: 242, G: 244, B: 255, A: 255})
+						}),
+						layout.Rigid(gapHeight(5)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, ui.l.bld.currentMap.Artist+" · "+ui.l.bld.currentMap.Difficulty, 12, color.NRGBA{R: 151, G: 162, B: 187, A: 255})
+						}),
+						layout.Rigid(gapHeight(12)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, "Played by "+replay.Username+"  ·  "+fmt.Sprintf("%d score", replay.Score), 12, color.NRGBA{R: 184, G: 175, B: 255, A: 255})
+						}),
+					)
+				}),
+				layout.Rigid(gapHeight(10)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.cancelButton, "Back", false) {
+								ui.page = gioPageHome
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(8)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							_, _, _, running := ui.currentStatus()
+							if running {
+								if ui.button(gtx, &ui.startButton, "Stop", false) {
+									ui.stopGame()
+								}
+							} else {
+								ui.primaryButton(gtx, &ui.startButton, "Watch replay", ui.l.canStart())
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
 				}),
 			)
 		})
@@ -866,44 +1120,72 @@ func (ui *gioLauncherUI) drawMods(gtx layout.Context) layout.Dimensions {
 				mod := gioMods[index]
 				active := ui.l.bld.diff.Mods.Active(mod.mod)
 				bg := color.NRGBA{R: 24, G: 29, B: 42, A: 255}
-				if active { bg = color.NRGBA{R: 48, G: 47, B: 81, A: 255} }
+				if active {
+					bg = color.NRGBA{R: 48, G: 47, B: 81, A: 255}
+				}
 				click := ui.modButtons[mod.mod]
-				dims := gioSurface(gtx, bg, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
-					gtx.Constraints.Min.Y = gtx.Dp(54)
-					gtx.Constraints.Max.Y = gtx.Dp(54)
-					return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.acronym, 12, color.NRGBA{R: 190, G: 181, B: 255, A: 255}) }),
-							layout.Rigid(gapWidth(12)),
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.label, 13, color.NRGBA{R: 229, G: 233, B: 246, A: 255}) }),
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.group, 9, color.NRGBA{R: 130, G: 141, B: 166, A: 255}) }),
-								)
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								state := "OFF"
-								if active { state = "ON" }
-								return ui.text(gtx, state, 10, color.NRGBA{R: 174, G: 167, B: 255, A: 255})
-							}),
-						)
+				dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+					return gioSurface(gtx, bg, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.Y = gtx.Dp(54)
+						gtx.Constraints.Max.Y = gtx.Dp(54)
+						return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return ui.text(gtx, mod.acronym, 12, color.NRGBA{R: 190, G: 181, B: 255, A: 255})
+								}),
+								layout.Rigid(gapWidth(12)),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											return ui.text(gtx, mod.label, 13, color.NRGBA{R: 229, G: 233, B: 246, A: 255})
+										}),
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											return ui.text(gtx, mod.group, 9, color.NRGBA{R: 130, G: 141, B: 166, A: 255})
+										}),
+									)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									state := "OFF"
+									if active {
+										state = "ON"
+								}
+									return ui.text(gtx, state, 10, color.NRGBA{R: 174, G: 167, B: 255, A: 255})
+								}),
+							)
+						})
 					})
 				})
-				material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
-				if click.Clicked(gtx) { ui.toggleMod(mod.mod) }
-				return layout.Inset{Bottom: unit.Dp(7), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return dims })
+				if click.Clicked(gtx) {
+					ui.toggleMod(mod.mod)
+				}
+				return layout.Inset{Bottom: unit.Dp(7), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return dims
+				})
 			})
 		}),
 		layout.Rigid(gapHeight(10)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, "Current: "+ui.l.bld.diff.GetModString(), 12, color.NRGBA{R: 165, G: 174, B: 197, A: 255}) }),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.button(gtx, &ui.startButton, "Start", ui.l.canStart()) }),
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return ui.text(gtx, "Current: "+ui.l.bld.diff.GetModString(), 12, color.NRGBA{R: 165, G: 174, B: 197, A: 255})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if ui.button(gtx, &ui.cancelButton, "Back", false) {
+						ui.page = gioPageHome
+					}
+					return layout.Dimensions{Size: gtx.Constraints.Min}
+				}),
+				layout.Rigid(gapWidth(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if ui.button(gtx, &ui.startButton, "Start", ui.l.canStart()) {
+						ui.launchGame()
+					}
+					return layout.Dimensions{Size: gtx.Constraints.Min}
+				}),
 			)
 		}),
 	)
 }
-
 func (ui *gioLauncherUI) toggleMod(mod difficulty.Modifier) {
 	diff := ui.l.bld.diff
 	if diff.Mods.Active(mod) {
@@ -929,7 +1211,7 @@ func (ui *gioLauncherUI) toggleMod(mod difficulty.Modifier) {
 func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.heading(gtx, "Settings", "A consistent Material interface for launcher preferences and gameplay options.")
+			return ui.heading(gtx, "Settings", "Configure graphics, sound, input, gameplay and launcher preferences.")
 		}),
 		layout.Rigid(gapHeight(16)),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -944,19 +1226,17 @@ func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
 								category := gioSettingsCategories[index]
 								click := ui.settingsButtons[category]
 								selected := ui.settingsCategory == category
-								label := category
 								bg := color.NRGBA{R: 22, G: 27, B: 39, A: 0}
 								if selected { bg = color.NRGBA{R: 49, G: 48, B: 82, A: 255} }
-								dims := gioSurface(gtx, bg, unit.Dp(9), func(gtx layout.Context) layout.Dimensions {
-									gtx.Constraints.Min.Y = gtx.Dp(40)
-									gtx.Constraints.Max.Y = gtx.Dp(40)
-									return layout.Inset{Left: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-											layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, label, 11, color.NRGBA{R: 205, G: 211, B: 229, A: 255}) }),
-										)
+								dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+									return gioSurface(gtx, bg, unit.Dp(9), func(gtx layout.Context) layout.Dimensions {
+										gtx.Constraints.Min.Y = gtx.Dp(40)
+										gtx.Constraints.Max.Y = gtx.Dp(40)
+										return layout.Inset{Left: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+											return ui.text(gtx, category, 11, color.NRGBA{R: 205, G: 211, B: 229, A: 255})
+										})
 									})
 								})
-								material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
 								if click.Clicked(gtx) && ui.settingsCategory != category {
 									ui.settingsCategory = category
 									ui.rebuildSettingsFields()
@@ -980,14 +1260,15 @@ func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if ui.button(gtx, &ui.saveSettings, "Save settings", true) { ui.saveAllSettings() }
+					if ui.button(gtx, &ui.saveSettings, "Save settings", true) {
+						ui.saveAllSettings()
+					}
 					return layout.Dimensions{Size: gtx.Constraints.Min}
 				}),
 			)
 		}),
 	)
 }
-
 func (ui *gioLauncherUI) drawConfigFields(gtx layout.Context) layout.Dimensions {
 	return gioSurface(gtx, color.NRGBA{R: 23, G: 28, B: 41, A: 255}, unit.Dp(16), func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -1001,6 +1282,38 @@ func (ui *gioLauncherUI) drawConfigFields(gtx layout.Context) layout.Dimensions 
 					return material.List(ui.theme, &ui.settingsFieldList).Layout(gtx, len(ui.settingsFields), func(gtx layout.Context, index int) layout.Dimensions {
 						return ui.drawSettingField(gtx, ui.settingsFields[index])
 					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if ui.settingsCategory != "Credentials" { return layout.Dimensions{} }
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.authorize, "Authorize with osu!", true) {
+								settings.SaveCredentials(false)
+								ui.setLoadState(true, "Waiting for osu! authorization…", 0)
+								go osuapi.Authorize(func(result osuapi.AuthResult, message string) {
+									settings.SaveCredentials(false)
+									if result == osuapi.AuthError { ui.setLoadState(false, "Authorization failed: "+message, 0) } else { ui.setLoadState(false, message, 1) }
+								})
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(8)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.resetTokens, "Reset tokens", false) {
+								settings.Credentails.AccessToken = ""
+								settings.Credentails.RefreshToken = ""
+								settings.Credentails.Expiry = time.Unix(0, 0)
+								settings.SaveCredentials(true)
+								ui.setLoadState(false, "OAuth tokens reset.", 1)
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(8)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.credentialHelp, "Help", false) { platform.OpenURL("https://github.com/shntsk/TaktChase/wiki/APIv2-Tutorial") }
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
 				}),
 			)
 		})
@@ -1026,6 +1339,24 @@ func (ui *gioLauncherUI) drawSettingField(gtx layout.Context, field *gioSettingF
 					field.value.SetBool(field.bool.Value)
 					return layout.Dimensions{Size: gtx.Constraints.Min}
 				case reflect.String:
+					if len(field.options) > 0 {
+						current := field.value.String()
+						label := current
+						for _, option := range field.options {
+							if option.value == current { label = option.label; break }
+						}
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, field.label, 11, color.NRGBA{R: 190, G: 198, B: 216, A: 255}) }),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if ui.button(gtx, &field.click, label+"  ▾", false) {
+									index := 0
+								for i, option := range field.options { if option.value == current { index = i; break } }
+									field.value.SetString(field.options[(index+1)%len(field.options)].value)
+								}
+								return layout.Dimensions{Size: gtx.Constraints.Min}
+							}),
+						)
+					}
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Flexed(0.36, func(gtx layout.Context) layout.Dimensions {
 							return ui.text(gtx, field.label, 11, color.NRGBA{R: 190, G: 198, B: 216, A: 255})
@@ -1171,7 +1502,7 @@ func (ui *gioLauncherUI) collectSettingsFields(path string, value reflect.Value)
 	if value.Kind() == reflect.Struct {
 		for i := 0; i < value.NumField(); i++ {
 			sf := value.Type().Field(i)
-			if sf.PkgPath != "" { continue }
+			if sf.PkgPath != "" || sf.Tag.Get("skip") == "true" { continue }
 			name := sf.Name
 			if jsonName := strings.Split(sf.Tag.Get("json"), ",")[0]; jsonName == "-" { continue }
 			label := sf.Tag.Get("label")
@@ -1193,7 +1524,11 @@ func (ui *gioLauncherUI) collectSettingsFields(path string, value reflect.Value)
 				if child.CanSet() {
 					f := &gioSettingField{key: childPath, label: label, value: child}
 					f.editor.SingleLine = true
+					if sf.Tag.Get("password") == "true" {
+						f.editor.Mask = '•'
+					}
 					f.editor.SetText(child.String())
+					f.options = parseGioOptions(sf.Tag.Get("combo"))
 					ui.settingsFields = append(ui.settingsFields, f)
 				}
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -1273,20 +1608,21 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 								active := name == ui.l.bld.config
 								bg := color.NRGBA{R: 30, G: 36, B: 52, A: 255}
 								if active { bg = color.NRGBA{R: 48, G: 47, B: 82, A: 255} }
-								dims := gioSurface(gtx, bg, unit.Dp(10), func(gtx layout.Context) layout.Dimensions {
-									gtx.Constraints.Min.Y = gtx.Dp(48)
-									gtx.Constraints.Max.Y = gtx.Dp(48)
-									return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-											layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, name, 13, color.NRGBA{R: 232, G: 235, B: 247, A: 255}) }),
-											layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-												if active { return ui.text(gtx, "ACTIVE", 9, color.NRGBA{R: 189, G: 179, B: 255, A: 255}) }
-												return layout.Dimensions{}
-											}),
-										)
+								dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+									return gioSurface(gtx, bg, unit.Dp(10), func(gtx layout.Context) layout.Dimensions {
+										gtx.Constraints.Min.Y = gtx.Dp(48)
+										gtx.Constraints.Max.Y = gtx.Dp(48)
+										return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+											return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+												layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, name, 13, color.NRGBA{R: 232, G: 235, B: 247, A: 255}) }),
+												layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+													if active { return ui.text(gtx, "ACTIVE", 9, color.NRGBA{R: 189, G: 179, B: 255, A: 255}) }
+													return layout.Dimensions{}
+												}),
+											)
+										})
 									})
 								})
-								material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
 								if click.Clicked(gtx) { ui.selectProfile(name) }
 								return layout.Inset{Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return dims })
 							})
@@ -1301,21 +1637,18 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-									clicked := ui.button(gtx, &ui.createProfile, "Create", true)
-									if clicked { ui.createProfileFromCurrent() }
-									return layout.Dimensions{Size: gtx.Constraints.Min}
+									if ui.button(gtx, &ui.createProfile, "Create", true) { ui.createProfileFromCurrent() }
+										return layout.Dimensions{Size: gtx.Constraints.Min}
 								}),
 								layout.Rigid(gapWidth(8)),
 								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-									clicked := ui.button(gtx, &ui.cloneProfile, "Clone current", false)
-									if clicked { ui.cloneCurrentProfile() }
-									return layout.Dimensions{Size: gtx.Constraints.Min}
+									if ui.button(gtx, &ui.cloneProfile, "Clone current", false) { ui.cloneCurrentProfile() }
+										return layout.Dimensions{Size: gtx.Constraints.Min}
 								}),
 								layout.Rigid(gapWidth(8)),
 								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-									clicked := ui.button(gtx, &ui.deleteProfile, "Delete", false)
-									if clicked { ui.deleteCurrentProfile() }
-									return layout.Dimensions{Size: gtx.Constraints.Min}
+									if ui.button(gtx, &ui.deleteProfile, "Delete", false) { ui.deleteCurrentProfile() }
+										return layout.Dimensions{Size: gtx.Constraints.Min}
 								}),
 							)
 						}),
@@ -1325,7 +1658,6 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 		}),
 	)
 }
-
 func (ui *gioLauncherUI) selectProfile(name string) {
 	conf, err := ui.l.loadConfig(name)
 	if err != nil {
@@ -1450,27 +1782,18 @@ func (ui *gioLauncherUI) text(gtx layout.Context, value string, size int, foregr
 }
 
 func gioSurface(gtx layout.Context, background color.NRGBA, radius unit.Dp, child layout.Widget) layout.Dimensions {
-	var childDims layout.Dimensions
-	dims := layout.Stack{Alignment: layout.NW}.Layout(gtx,
-		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			size := gtx.Constraints.Max
-			r := clip.RRect{
-				Rect: image.Rectangle{Max: size},
-				NE: radius, NW: radius, SE: radius, SW: radius,
-			}
-			paint.FillShape(gtx.Ops, background, r.Op(gtx.Ops))
-			return layout.Dimensions{Size: size}
-		}),
-		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			childDims = child(gtx)
-			return childDims
-		}),
-	)
-	if dims.Size.X == 0 { dims.Size.X = childDims.Size.X }
-	if dims.Size.Y == 0 { dims.Size.Y = childDims.Size.Y }
+	recorder := op.Record(gtx.Ops)
+	dims := child(gtx)
+	call := recorder.Stop()
+
+	rounded := clip.RRect{
+		Rect: image.Rectangle{Max: dims.Size},
+		NE: radius, NW: radius, SE: radius, SW: radius,
+	}
+	paint.FillShape(gtx.Ops, background, rounded.Op(gtx.Ops))
+	call.Add(gtx.Ops)
 	return dims
 }
-
 func gapHeight(value int) layout.Widget {
 	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(0, gtx.Dp(value))} }
 }
