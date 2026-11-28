@@ -84,6 +84,12 @@ type gioLauncherUI struct {
 	searchEditor widget.Editor
 	mapList      widget.List
 	modsList     widget.List
+	modSettingsList widget.List
+	selectedMod difficulty.Modifier
+	modSettingsConfig any
+	modSettingsFields []*gioSettingField
+	modSettingsApply widget.Clickable
+	modSettingsReset widget.Clickable
 	settingsNavList widget.List
 	settingsFieldList widget.List
 	profileList  widget.List
@@ -288,6 +294,7 @@ func newGioLauncherUI(l *launcher) *gioLauncherUI {
 	ui.endEditor.SetText(strconv.FormatInt(int64(l.bld.end.value), 10))
 	ui.mapList.List.Axis = layout.Vertical
 	ui.modsList.List.Axis = layout.Vertical
+	ui.modSettingsList.List.Axis = layout.Vertical
 	ui.settingsNavList.List.Axis = layout.Vertical
 	ui.settingsFieldList.List.Axis = layout.Vertical
 	ui.profileList.List.Axis = layout.Vertical
@@ -805,6 +812,8 @@ func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
 		})
 		if click.Clicked(gtx) {
 			ui.l.bld.setMap(bMap)
+			ui.selectedMod = difficulty.None
+			ui.rebuildModSettings(difficulty.None)
 			launcherConfig.CurrentMode = Play
 			ui.page = gioPageHome
 		}
@@ -1183,100 +1192,271 @@ func (ui *gioLauncherUI) statGrid(gtx layout.Context, b *beatmap.BeatMap) layout
 func (ui *gioLauncherUI) drawMods(gtx layout.Context) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.heading(gtx, "Mods & difficulty", "Toggle gameplay modifiers. Incompatible combinations are cleared automatically.")
+			return ui.heading(gtx, "Mods & difficulty", "Toggle gameplay modifiers and tune their additional options.")
 		}),
 		layout.Rigid(gapHeight(16)),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return material.List(ui.theme, &ui.modsList).Layout(gtx, len(gioMods), func(gtx layout.Context, index int) layout.Dimensions {
-				mod := gioMods[index]
-				active := ui.l.bld.diff.Mods.Active(mod.mod)
-				bg := color.NRGBA{R: 24, G: 29, B: 42, A: 255}
-				if active {
-					bg = color.NRGBA{R: 48, G: 47, B: 81, A: 255}
-				}
-				click := ui.modButtons[mod.mod]
-				dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
-					return gioSurface(gtx, bg, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
-						gtx.Constraints.Min.Y = gtx.Dp(54)
-						gtx.Constraints.Max.Y = gtx.Dp(54)
-						return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return ui.text(gtx, mod.acronym, 12, color.NRGBA{R: 190, G: 181, B: 255, A: 255})
-								}),
-								layout.Rigid(gapWidth(12)),
-								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-									return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											return ui.text(gtx, mod.label, 13, color.NRGBA{R: 229, G: 233, B: 246, A: 255})
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(0.52, func(gtx layout.Context) layout.Dimensions {
+					return material.List(ui.theme, &ui.modsList).Layout(gtx, len(gioMods), func(gtx layout.Context, index int) layout.Dimensions {
+						mod := gioMods[index]
+						active := ui.l.bld.diff.Mods.Active(mod.mod)
+						bg := color.NRGBA{R: 24, G: 29, B: 42, A: 255}
+						if active { bg = color.NRGBA{R: 48, G: 47, B: 81, A: 255} }
+						click := ui.modButtons[mod.mod]
+						dims := material.Clickable(gtx, click, func(gtx layout.Context) layout.Dimensions {
+							return gioSurface(gtx, bg, unit.Dp(12), func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Min.Y = gtx.Dp(54)
+								gtx.Constraints.Max.Y = gtx.Dp(54)
+								return layout.Inset{Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.acronym, 12, color.NRGBA{R: 190, G: 181, B: 255, A: 255}) }),
+										layout.Rigid(gapWidth(12)),
+										layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+											return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+												layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.label, 13, color.NRGBA{R: 229, G: 233, B: 246, A: 255}) }),
+												layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, mod.group, 9, color.NRGBA{R: 130, G: 141, B: 166, A: 255}) }),
+											)
 										}),
 										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											return ui.text(gtx, mod.group, 9, color.NRGBA{R: 130, G: 141, B: 166, A: 255})
+											state := "OFF"
+											if active { state = "ON" }
+											return ui.text(gtx, state, 10, color.NRGBA{R: 174, G: 167, B: 255, A: 255})
 										}),
 									)
-								}),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									state := "OFF"
-									if active {
-										state = "ON"
-								}
-									return ui.text(gtx, state, 10, color.NRGBA{R: 174, G: 167, B: 255, A: 255})
-								}),
-							)
+								})
+							})
 						})
+						if click.Clicked(gtx) { ui.toggleMod(mod.mod) }
+						return layout.Inset{Bottom: unit.Dp(7), Right: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return dims })
 					})
-				})
-				if click.Clicked(gtx) {
-					ui.toggleMod(mod.mod)
-				}
-				return layout.Inset{Bottom: unit.Dp(7), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return dims
-				})
-			})
+				}),
+				layout.Rigid(gapWidth(12)),
+				layout.Flexed(0.48, ui.drawModSettingsPanel),
+			)
 		}),
 		layout.Rigid(gapHeight(10)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					return ui.text(gtx, "Current: "+ui.l.bld.diff.GetModString(), 12, color.NRGBA{R: 165, G: 174, B: 197, A: 255})
-				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, "Current: "+ui.l.bld.diff.GetModString(), 12, color.NRGBA{R: 165, G: 174, B: 197, A: 255}) }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if ui.button(gtx, &ui.cancelButton, "Back", false) {
-						ui.page = gioPageHome
-					}
+					if ui.button(gtx, &ui.cancelButton, "Back", false) { ui.page = gioPageHome }
 					return layout.Dimensions{Size: gtx.Constraints.Min}
 				}),
 				layout.Rigid(gapWidth(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if ui.button(gtx, &ui.startButton, "Start", ui.l.canStart()) {
-						ui.launchGame()
-					}
+					if ui.button(gtx, &ui.startButton, "Start", ui.l.canStart()) { ui.launchGame() }
 					return layout.Dimensions{Size: gtx.Constraints.Min}
 				}),
 			)
 		}),
 	)
 }
+
 func (ui *gioLauncherUI) toggleMod(mod difficulty.Modifier) {
 	diff := ui.l.bld.diff
+	baseDiff := ui.l.bld.baseDiff
 	if diff.Mods.Active(mod) {
 		diff.RemoveMod(mod)
+		baseDiff.RemoveMod(mod)
+		if ui.selectedMod == mod {
+			ui.selectedMod = difficulty.None
+			ui.rebuildModSettings(difficulty.None)
+		}
 		return
 	}
+
 	conflicts := diff.Mods & mod.GetStableIncompatibleMods()
 	if conflicts != difficulty.None {
 		diff.RemoveMod(conflicts)
+		baseDiff.RemoveMod(conflicts)
 	}
 	switch mod {
 	case difficulty.Nightcore:
 		diff.AddMod(difficulty.DoubleTime | difficulty.Nightcore)
+		baseDiff.AddMod(difficulty.DoubleTime | difficulty.Nightcore)
 	case difficulty.Daycore:
 		diff.AddMod(difficulty.HalfTime | difficulty.Daycore)
+		baseDiff.AddMod(difficulty.HalfTime | difficulty.Daycore)
 	case difficulty.Perfect:
 		diff.AddMod(difficulty.SuddenDeath | difficulty.Perfect)
+		baseDiff.AddMod(difficulty.SuddenDeath | difficulty.Perfect)
 	default:
 		diff.AddMod(mod)
+		baseDiff.AddMod(mod)
 	}
+	ui.selectedMod = mod
+	ui.rebuildModSettings(mod)
+}
+
+func (ui *gioLauncherUI) rebuildModSettings(mod difficulty.Modifier) {
+	ui.selectedMod = mod
+	ui.modSettingsConfig = nil
+	ui.modSettingsFields = nil
+	if mod == difficulty.None || !ui.l.bld.diff.Mods.Active(mod) {
+		return
+	}
+
+	var config any
+	switch mod {
+	case difficulty.DoubleTime, difficulty.Nightcore, difficulty.HalfTime, difficulty.Daycore:
+		value, ok := difficulty.GetModConfig[difficulty.SpeedSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.Easy:
+		value, ok := difficulty.GetModConfig[difficulty.EasySettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.SuddenDeath, difficulty.Perfect:
+		value, ok := difficulty.GetModConfig[difficulty.SuddenDeathSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.Hidden:
+		value, ok := difficulty.GetModConfig[difficulty.HiddenSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.Classic:
+		value, ok := difficulty.GetModConfig[difficulty.ClassicSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.Flashlight:
+		value, ok := difficulty.GetModConfig[difficulty.FlashlightSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.DifficultyAdjust:
+		value, ok := difficulty.GetModConfig[difficulty.DiffAdjustSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	case difficulty.Mirror:
+		value, ok := difficulty.GetModConfig[difficulty.MirrorSettings](ui.l.bld.diff)
+		if ok { config = &value }
+	}
+	if config == nil {
+		return
+	}
+
+	ui.modSettingsConfig = config
+	root := reflect.ValueOf(config).Elem()
+	for i := 0; i < root.NumField(); i++ {
+		field := root.Field(i)
+		if !field.CanSet() { continue }
+		sf := root.Type().Field(i)
+		label := gioHumanize(sf.Name)
+		switch sf.Name {
+		case "SpeedChange": label = "Speed multiplier"
+		case "AdjustPitch": label = "Adjust pitch"
+		case "Retries": label = "Extra lives"
+		case "FailOnSliderTail": label = "Fail on slider tails"
+		case "OnlyFadeApproachCircles": label = "Only fade approach circles"
+		case "NoSliderHeadAccuracy": label = "No slider head accuracy requirement"
+		case "ClassicNoteLock": label = "Apply classic note lock"
+		case "AlwaysPlayTailSample": label = "Always play slider tail sample"
+		case "FadeHitCircleEarly": label = "Fade hit circles early"
+		case "ClassicHealth": label = "Classic health"
+		case "FollowDelay": label = "Follow delay (ms)"
+		case "SizeMultiplier": label = "Size multiplier"
+		case "ComboBasedSize": label = "Combo-based size"
+		case "ApproachRate": label = "Approach Rate (AR)"
+		case "OverallDifficulty": label = "Overall Difficulty (OD)"
+		case "CircleSize": label = "Circle Size (CS)"
+		case "DrainRate": label = "Health Drain (HP)"
+		case "ExtendedValues": label = "Extended difficulty values"
+		case "FlipMode": label = "Mirror axis"
+		}
+		item := &gioSettingField{key: "Mods." + sf.Name, label: label, value: field}
+		switch field.Kind() {
+		case reflect.Bool:
+			item.bool.Value = field.Bool()
+		case reflect.String:
+			item.editor.SingleLine = true
+			item.editor.SetText(field.String())
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			item.editor.SingleLine = true
+			item.editor.SetText(strconv.FormatInt(field.Int(), 10))
+		case reflect.Float32, reflect.Float64:
+			item.editor.SingleLine = true
+			item.editor.SetText(strconv.FormatFloat(field.Float(), 'f', 2, 64))
+		}
+		if sf.Name == "FlipMode" {
+			item.options = []gioSettingOption{
+				{value: "0", label: "Horizontal"},
+				{value: "1", label: "Vertical"},
+				{value: "2", label: "Both"},
+			}
+		}
+		ui.modSettingsFields = append(ui.modSettingsFields, item)
+	}
+}
+
+func (ui *gioLauncherUI) applyModSettings() {
+	if ui.modSettingsConfig == nil { return }
+	switch value := ui.modSettingsConfig.(type) {
+	case *difficulty.SpeedSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.EasySettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.SuddenDeathSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.HiddenSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.ClassicSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.FlashlightSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.DiffAdjustSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	case *difficulty.MirrorSettings:
+		difficulty.SetModConfig(ui.l.bld.diff, *value)
+	}
+	ui.setLoadState(false, "Modifier settings applied.", 1)
+}
+
+func (ui *gioLauncherUI) drawModSettingsPanel(gtx layout.Context) layout.Dimensions {
+	return gioSurface(gtx, color.NRGBA{R: 23, G: 28, B: 41, A: 255}, unit.Dp(16), func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(14), Left: unit.Dp(15), Right: unit.Dp(15)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					label := "Modifier settings"
+					if ui.selectedMod != difficulty.None {
+						label = ui.selectedMod.StringFull()[0] + " settings"
+					}
+					return ui.text(gtx, label, 15, color.NRGBA{R: 237, G: 239, B: 249, A: 255})
+				}),
+				layout.Rigid(gapHeight(6)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if ui.selectedMod == difficulty.None {
+						return ui.text(gtx, "Enable a mod to see its extra options.", 11, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+					}
+					if !ui.l.bld.diff.Mods.Active(ui.selectedMod) {
+						return ui.text(gtx, "This modifier is currently disabled.", 11, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+					}
+					if len(ui.modSettingsFields) == 0 {
+						return ui.text(gtx, "This modifier has no extra settings.", 11, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+					}
+					return ui.text(gtx, "Adjust its options below, then apply.", 11, color.NRGBA{R: 145, G: 156, B: 181, A: 255})
+				}),
+				layout.Rigid(gapHeight(10)),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					if len(ui.modSettingsFields) == 0 {
+						return layout.Dimensions{}
+					}
+					return material.List(ui.theme, &ui.modSettingsList).Layout(gtx, len(ui.modSettingsFields), func(gtx layout.Context, index int) layout.Dimensions {
+						return ui.drawSettingField(gtx, ui.modSettingsFields[index])
+					})
+				}),
+				layout.Rigid(gapHeight(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if len(ui.modSettingsFields) == 0 { return layout.Dimensions{} }
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.modSettingsReset, "Reset", false) {
+								ui.rebuildModSettings(ui.selectedMod)
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(8)),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.modSettingsApply, "Apply", true) { ui.applyModSettings() }
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
+				}),
+			)
+		})
+	})
 }
 
 func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
