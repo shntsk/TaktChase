@@ -696,13 +696,13 @@ func (ui *gioLauncherUI) drawCompactLibrary(gtx layout.Context) layout.Dimension
 					style := material.Editor(ui.theme, &ui.searchEditor, "Search maps…")
 					style.Color = color.NRGBA{R: 235, G: 238, B: 247, A: 255}
 					style.HintColor = color.NRGBA{R: 115, G: 126, B: 151, A: 255}
-					style.Layout(gtx)
+					dims := style.Layout(gtx)
 					search := strings.TrimSpace(ui.searchEditor.Text())
 					if search != ui.lastSearch {
 						ui.lastSearch = search
 						ui.filterMaps()
 					}
-					return layout.Dimensions{Size: gtx.Constraints.Min}
+					return dims
 				}),
 				layout.Rigid(gapHeight(9)),
 				layout.Flexed(1, ui.drawMapRows),
@@ -739,8 +739,12 @@ func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
 		})
 	}
 	if len(ui.filteredMaps) == 0 {
+		message := "No maps match this search."
+		if len(ui.l.beatmaps) == 0 {
+			message = "No beatmaps found. Check the Songs folder in Settings."
+		}
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return ui.text(gtx, "No maps match this search.", 13, color.NRGBA{R: 150, G: 160, B: 184, A: 255})
+			return ui.text(gtx, message, 13, color.NRGBA{R: 150, G: 160, B: 184, A: 255})
 		})
 	}
 
@@ -879,8 +883,7 @@ func (ui *gioLauncherUI) drawSpeed(gtx layout.Context) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				style := material.Editor(ui.theme, editor, hint)
 				style.TextSize = unit.Sp(13)
-				style.Layout(gtx)
-				return layout.Dimensions{Size: gtx.Constraints.Min}
+				return style.Layout(gtx)
 			}),
 		)
 	}
@@ -1016,8 +1019,7 @@ func (ui *gioLauncherUI) drawReplayPanel(gtx layout.Context) layout.Dimensions {
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					style := material.Editor(ui.theme, &ui.replayPath, "Path to .osr replay")
 					style.TextSize = unit.Sp(12)
-					style.Layout(gtx)
-					return layout.Dimensions{Size: gtx.Constraints.Min}
+					return style.Layout(gtx)
 				}),
 				layout.Rigid(gapHeight(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -1510,7 +1512,7 @@ func (ui *gioLauncherUI) drawLauncherPreferences(gtx layout.Context) layout.Dime
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							style := material.Editor(ui.theme, &ui.launcherVolume, "0–100")
 							style.TextSize = unit.Sp(12)
-							style.Layout(gtx)
+							dims := style.Layout(gtx)
 							if volume, err := strconv.Atoi(ui.launcherVolume.Text()); err == nil {
 								launcherConfig.PreviewVolume = math.Max(0, math.Min(1, float64(volume)/100))
 							}
