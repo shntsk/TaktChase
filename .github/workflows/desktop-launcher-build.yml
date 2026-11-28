@@ -55,6 +55,10 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      - name: Resolve Go modules
+        run: go mod download
+      - name: Resolve Go modules
+        run: go mod download
       - name: Build desktop package
         env:
           SKIP_FFMPEG: "1"
