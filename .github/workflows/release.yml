@@ -103,9 +103,10 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git curl unzip \
+          pacman -S --noconfirm base-devel git curl unzip pkgconf \
             libx11 libxrandr libxcursor libxinerama libxi libxext libxxf86vm \
-            mesa libglvnd gtk3 alsa-lib
+            libxcb libxkbcommon libxkbcommon-x11 wayland wayland-protocols \
+            mesa libglvnd gtk3 alsa-lib vulkan-headers
 
       - uses: actions/checkout@v4
 
@@ -115,6 +116,9 @@ jobs:
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
 
       - name: Build
+        env:
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           version="${{ needs.version.outputs.version }}"
