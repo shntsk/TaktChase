@@ -45,6 +45,7 @@ const (
 	gioPageSettings
 	gioPageProfiles
 	gioPageAbout
+	gioPageSpeed
 )
 
 type gioSettingOption struct {
@@ -79,6 +80,10 @@ type gioLauncherUI struct {
 
 	searchEditor widget.Editor
 	mapList      widget.List
+	modsList     widget.List
+	settingsNavList widget.List
+	settingsFieldList widget.List
+	profileList  widget.List
 	filteredMaps []*beatmap.BeatMap
 	lastSearch   string
 	mapButtons   map[string]*widget.Clickable
@@ -248,7 +253,14 @@ func newGioLauncherUI(l *launcher) *gioLauncherUI {
 	ui.launcherVolume.SingleLine = true
 	ui.launcherVolume.SetText(strconv.Itoa(int(launcherConfig.PreviewVolume * 100)))
 	ui.mapList.List.Axis = layout.Vertical
-	ui.settingsList.List.Axis = layout.Vertical
+	ui.modsList.List.Axis = layout.Vertical
+	ui.settingsNavList.List.Axis = layout.Vertical
+	ui.settingsFieldList.List.Axis = layout.Vertical
+	ui.profileList.List.Axis = layout.Vertical
+	ui.speedEditor.SingleLine = true
+	ui.speedEditor.SetText(strconv.FormatFloat(l.bld.speed.value, 'f', 2, 64))
+	ui.pitchEditor.SingleLine = true
+	ui.pitchEditor.SetText(strconv.FormatFloat(l.bld.pitch.value, 'f', 2, 64))
 
 	for _, page := range []gioPage{gioPageHome, gioPageLibrary, gioPageMods, gioPageSettings, gioPageProfiles, gioPageAbout} {
 		ui.navButtons[page] = new(widget.Clickable)
@@ -353,9 +365,6 @@ func (ui *gioLauncherUI) loadMaps() {
 		ui.l.mapsLoaded = true
 		ui.l.setupWatcher()
 
-		if launcherConfig.LoadLatestReplay {
-			ui.loadLatestReplay()
-		}
 		ui.setLoadState(false, fmt.Sprintf("%d difficulties ready", len(maps)), 1)
 	}()
 }
@@ -521,6 +530,8 @@ func (ui *gioLauncherUI) drawPage(gtx layout.Context) layout.Dimensions {
 		return ui.drawProfiles(gtx)
 	case gioPageAbout:
 		return ui.drawAbout(gtx)
+	case gioPageSpeed:
+		return ui.drawSpeed(gtx)
 	default:
 		return ui.drawHome(gtx)
 	}
@@ -569,11 +580,22 @@ func (ui *gioLauncherUI) modeSelector(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(gapWidth(8)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.button(gtx, &ui.modePlay, "Play", launcherConfig.CurrentMode == Play)
+			if ui.button(gtx, &ui.modePlay, "Play", launcherConfig.CurrentMode == Play) {
+				launcherConfig.CurrentMode = Play
+				ui.l.bld.currentReplay = nil
+				ui.l.bld.replayPath = ""
+			}
+			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}),
 		layout.Rigid(gapWidth(6)),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.button(gtx, &ui.modeReplay, "Replay", launcherConfig.CurrentMode == Replay)
+			if ui.button(gtx, &ui.modeReplay, "Replay", launcherConfig.CurrentMode == Replay) {
+				launcherConfig.CurrentMode = Replay
+				ui.l.bld.currentReplay = nil
+				ui.l.bld.replayPath = ""
+				ui.replayPath.SetText("")
+			}
+			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}),
 	)
 }
@@ -840,7 +862,7 @@ func (ui *gioLauncherUI) drawMods(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(gapHeight(16)),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return material.List(ui.theme, &ui.settingsList).Layout(gtx, len(gioMods), func(gtx layout.Context, index int) layout.Dimensions {
+			return material.List(ui.theme, &ui.modsList).Layout(gtx, len(gioMods), func(gtx layout.Context, index int) layout.Dimensions {
 				mod := gioMods[index]
 				active := ui.l.bld.diff.Mods.Active(mod.mod)
 				bg := color.NRGBA{R: 24, G: 29, B: 42, A: 255}
@@ -918,7 +940,7 @@ func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Max.X = width
 					return gioSurface(gtx, color.NRGBA{R: 22, G: 27, B: 39, A: 255}, unit.Dp(14), func(gtx layout.Context) layout.Dimensions {
 						return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(9), Right: unit.Dp(9)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return material.List(ui.theme, &ui.settingsList).Layout(gtx, len(gioSettingsCategories), func(gtx layout.Context, index int) layout.Dimensions {
+							return material.List(ui.theme, &ui.settingsNavList).Layout(gtx, len(gioSettingsCategories), func(gtx layout.Context, index int) layout.Dimensions {
 								category := gioSettingsCategories[index]
 								click := ui.settingsButtons[category]
 								selected := ui.settingsCategory == category
@@ -958,7 +980,8 @@ func (ui *gioLauncherUI) drawSettings(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return ui.button(gtx, &ui.saveSettings, "Save settings", true)
+					if ui.button(gtx, &ui.saveSettings, "Save settings", true) { ui.saveAllSettings() }
+					return layout.Dimensions{Size: gtx.Constraints.Min}
 				}),
 			)
 		}),
@@ -975,7 +998,7 @@ func (ui *gioLauncherUI) drawConfigFields(gtx layout.Context) layout.Dimensions 
 					if len(ui.settingsFields) == 0 {
 						return ui.text(gtx, "No editable fields in this section.", 12, color.NRGBA{R: 150, G: 160, B: 183, A: 255})
 					}
-					return material.List(ui.theme, &ui.settingsList).Layout(gtx, len(ui.settingsFields), func(gtx layout.Context, index int) layout.Dimensions {
+					return material.List(ui.theme, &ui.settingsFieldList).Layout(gtx, len(ui.settingsFields), func(gtx layout.Context, index int) layout.Dimensions {
 						return ui.drawSettingField(gtx, ui.settingsFields[index])
 					})
 				}),
@@ -1243,7 +1266,7 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ui.text(gtx, "AVAILABLE PROFILES", 10, color.NRGBA{R: 145, G: 156, B: 183, A: 255}) }),
 						layout.Rigid(gapHeight(10)),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return material.List(ui.theme, &ui.settingsList).Layout(gtx, len(ui.l.configList), func(gtx layout.Context, index int) layout.Dimensions {
+							return material.List(ui.theme, &ui.profileList).Layout(gtx, len(ui.l.configList), func(gtx layout.Context, index int) layout.Dimensions {
 								name := ui.l.configList[index]
 								click := ui.profileButtons[name]
 								if click == nil { click = new(widget.Clickable); ui.profileButtons[name] = click }
