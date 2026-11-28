@@ -2053,7 +2053,7 @@ func gapHeight(value int) layout.Widget {
 }
 
 func gapWidth(value int) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(gtx.Dp(value), 0)} }
+	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(gtx.Dp(unit.Dp(value)), 0)} }
 }
 
 func (ui *gioLauncherUI) filterMaps() {
