@@ -177,9 +177,7 @@ var gioMods = []gioModItem{
 	{group: "Ruleset", acronym: "TC", label: "Traceable", mod: difficulty.Traceable},
 }
 
-func StartLauncher() {
-	startGioLauncher()
-}
+
 
 func startGioLauncher() {
 	platform.StartLogging("launcher")
@@ -2041,16 +2039,17 @@ func gioSurface(gtx layout.Context, background color.NRGBA, radius unit.Dp, chil
 	dims := child(gtx)
 	call := recorder.Stop()
 
+	r := gtx.Dp(radius)
 	rounded := clip.RRect{
 		Rect: image.Rectangle{Max: dims.Size},
-		NE: radius, NW: radius, SE: radius, SW: radius,
+		NE: r, NW: r, SE: r, SW: r,
 	}
 	paint.FillShape(gtx.Ops, background, rounded.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
 }
 func gapHeight(value int) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(0, gtx.Dp(value))} }
+	return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: image.Pt(0, gtx.Dp(unit.Dp(value)))} }
 }
 
 func gapWidth(value int) layout.Widget {
