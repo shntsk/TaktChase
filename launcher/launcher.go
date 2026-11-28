@@ -37,7 +37,6 @@ import (
 	appUtils "github.com/shntsk/taktchase/app/utils"
 	"github.com/shntsk/taktchase/app/states/components/common"
 	"github.com/shntsk/taktchase/build"
-	"github.com/shntsk/taktchase/framework/assets"
 	"github.com/shntsk/taktchase/framework/bass"
 	"github.com/shntsk/taktchase/framework/env"
 	"github.com/shntsk/taktchase/framework/goroutines"
