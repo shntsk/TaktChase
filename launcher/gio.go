@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -25,6 +26,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/sqweek/dialog"
 
 	"github.com/shntsk/taktchase/app/beatmap"
@@ -126,6 +128,9 @@ type gioLauncherUI struct {
 	speedEditor       widget.Editor
 
 	statusMu      sync.RWMutex
+	reloadMu      sync.Mutex
+	watchMu       sync.Mutex
+	refreshTimer  *time.Timer
 	status        string
 	loading       bool
 	loadingPct    float32
@@ -231,7 +236,15 @@ func startGioLauncher() {
 		if l.currentConfig != nil {
 			l.currentConfig.Save("", false)
 		}
+		ui.watchMu.Lock()
+		if ui.refreshTimer != nil {
+			ui.refreshTimer.Stop()
+		}
+		ui.watchMu.Unlock()
+		closeWatcher()
+		ui.reloadMu.Lock()
 		database.Close()
+		ui.reloadMu.Unlock()
 		os.Exit(0)
 	}()
 
@@ -327,6 +340,8 @@ func (ui *gioLauncherUI) run(window *app.Window) error {
 func (ui *gioLauncherUI) loadMaps() {
 	ui.setLoadState(true, "Scanning beatmaps…", 0)
 	go func() {
+		ui.reloadMu.Lock()
+		defer ui.reloadMu.Unlock()
 		database.Close()
 		if err := database.Init(); err != nil {
 			ui.l.beatmaps = nil
@@ -381,10 +396,37 @@ func (ui *gioLauncherUI) loadMaps() {
 		ui.l.beatmaps = maps
 		ui.filteredMaps = append([]*beatmap.BeatMap(nil), maps...)
 		ui.l.mapsLoaded = true
-		ui.l.setupWatcher()
+		ui.setupSongsWatcher()
 
 		ui.setLoadState(false, fmt.Sprintf("%d difficulties ready", len(maps)), 1)
 	}()
+}
+
+func (ui *gioLauncherUI) setupSongsWatcher() {
+	closeWatcher()
+	setupWatcher(settings.General.GetSongsDir(), func(event fsnotify.Event) {
+		if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Rename|fsnotify.Remove) == 0 {
+			return
+		}
+		if !launcherConfig.AutoRefreshDB {
+			ui.setLoadState(false, "Songs folder changed. Press Refresh to rescan the library.", 1)
+			return
+		}
+		ui.statusMu.Lock()
+		ui.status = "Songs folder changed. Refreshing the library…"
+		ui.statusMu.Unlock()
+		if ui.window != nil {
+			ui.window.Invalidate()
+		}
+		ui.watchMu.Lock()
+		if ui.refreshTimer != nil {
+			ui.refreshTimer.Stop()
+		}
+		ui.refreshTimer = time.AfterFunc(1500*time.Millisecond, func() {
+			ui.loadMaps()
+		})
+		ui.watchMu.Unlock()
+	})
 }
 
 func (ui *gioLauncherUI) setLoadState(loading bool, status string, progress float32) {
