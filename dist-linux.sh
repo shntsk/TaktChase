@@ -23,7 +23,7 @@ for module in gl xkbcommon wayland-client gtk+-3.0 glib-2.0 x11-xcb xkbcommon-x1
   fi
 done
 
-if ! printf '%s\\n' '#include <vulkan/vulkan.h>' | "$CC" -E -x c - >/dev/null 2>&1; then
+if ! echo '#include <vulkan/vulkan.h>' | "$CC" -E -x c - >/dev/null 2>&1; then
   missing_modules+=("header vulkan/vulkan.h")
 fi
 
