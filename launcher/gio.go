@@ -136,6 +136,8 @@ type gioLauncherUI struct {
 	loadingPct    float32
 	process       *exec.Cmd
 	processActive bool
+	pendingLatestReplay bool
+	latestReplayChecked bool
 }
 
 var gioSettingsCategories = []string{
@@ -262,8 +264,9 @@ func newGioLauncherUI(l *launcher) *gioLauncherUI {
 		settingsButtons:   make(map[string]*widget.Clickable),
 		settingsBool:      make(map[string]*widget.Bool),
 		settingsCategory:  "General",
-		status:            "Preparing beatmap library…",
-		loading:           true,
+		status:              "Preparing beatmap library…",
+		loading:             true,
+		pendingLatestReplay: launcherConfig.LoadLatestReplay,
 	}
 	ui.searchEditor.SingleLine = true
 	ui.searchEditor.SetText("")
@@ -447,6 +450,12 @@ func (ui *gioLauncherUI) currentStatus() (string, bool, float32, bool) {
 }
 
 func (ui *gioLauncherUI) layout(gtx layout.Context) layout.Dimensions {
+	_, loading, _, _ := ui.currentStatus()
+	if !loading && ui.pendingLatestReplay && !ui.latestReplayChecked {
+		ui.latestReplayChecked = true
+		ui.pendingLatestReplay = false
+		ui.loadLatestReplay()
+	}
 	paint.Fill(gtx.Ops, color.NRGBA{R: 12, G: 15, B: 23, A: 255})
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(ui.drawTopBar),
@@ -639,6 +648,11 @@ func (ui *gioLauncherUI) modeSelector(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if ui.button(gtx, &ui.modePlay, "Play", launcherConfig.CurrentMode == Play) {
 				launcherConfig.CurrentMode = Play
+				if ui.l.bld.currentMap != nil {
+					ui.l.bld.setMap(ui.l.bld.currentMap)
+				} else {
+					ui.l.bld.removeReplay()
+				}
 				ui.l.bld.currentReplay = nil
 				ui.l.bld.replayPath = ""
 			}
@@ -648,6 +662,11 @@ func (ui *gioLauncherUI) modeSelector(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if ui.button(gtx, &ui.modeReplay, "Replay", launcherConfig.CurrentMode == Replay) {
 				launcherConfig.CurrentMode = Replay
+				if ui.l.bld.currentMap != nil {
+					ui.l.bld.setMap(ui.l.bld.currentMap)
+				} else {
+					ui.l.bld.removeReplay()
+				}
 				ui.l.bld.currentReplay = nil
 				ui.l.bld.replayPath = ""
 				ui.replayPath.SetText("")
@@ -973,6 +992,11 @@ func (ui *gioLauncherUI) applySpeedAndTiming() {
 	if value, err := strconv.ParseInt(strings.TrimSpace(ui.offsetEditor.Text()), 10, 32); err == nil {
 		b.offset.value = int32(value)
 		b.offset.changed = b.offset.value != b.offset.ogValue
+	}
+	if b.end.value > 0 && b.start.value >= b.end.value {
+		b.start.value = max(int32(0), b.end.value-1)
+		b.start.changed = b.start.value != b.start.ogValue
+		ui.startEditor.SetText(strconv.FormatInt(int64(b.start.value), 10))
 	}
 	if b.currentMap != nil && b.offset.value != int32(b.currentMap.LocalOffset) {
 		b.currentMap.LocalOffset = int(b.offset.value)
@@ -1701,6 +1725,7 @@ func (ui *gioLauncherUI) drawProfiles(gtx layout.Context) layout.Dimensions {
 	)
 }
 func (ui *gioLauncherUI) selectProfile(name string) {
+	oldSongsDir := settings.General.GetSongsDir()
 	conf, err := ui.l.loadConfig(name)
 	if err != nil {
 		ui.setLoadState(false, "Could not load profile: "+err.Error(), 0)
@@ -1714,7 +1739,11 @@ func (ui *gioLauncherUI) selectProfile(name string) {
 	settings.General.OsuReplaysDir = conf.General.OsuReplaysDir
 	saveLauncherConfig()
 	ui.rebuildSettingsFields()
-	ui.setLoadState(false, "Profile switched to "+name, 1)
+	if oldSongsDir != settings.General.GetSongsDir() {
+		ui.loadMaps()
+	} else {
+		ui.setLoadState(false, "Profile switched to "+name, 1)
+	}
 }
 
 func (ui *gioLauncherUI) createProfileFromCurrent() {
