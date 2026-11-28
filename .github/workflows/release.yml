@@ -36,7 +36,16 @@ jobs:
           else
             v="${{ inputs.version }}"
           fi
-          if [[ -z "$v" ]]; then echo "empty version"; exit 1; fi
+
+          # Accept tags such as v.0.0.7 as 0.0.7, while keeping normal vX.Y.Z tags unchanged.
+          v="${v#v}"
+          v="${v#.}"
+
+          if [[ ! "$v" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "Invalid version '$v'. Expected numeric components such as 0.1.0." >&2
+            exit 1
+          fi
+
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
   build_windows:
