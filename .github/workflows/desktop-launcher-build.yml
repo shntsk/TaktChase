@@ -61,6 +61,8 @@ jobs:
       - name: Build desktop package
         env:
           SKIP_FFMPEG: "1"
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
         run: |
           ./dist-linux.sh 0.0.1
           test -s "dist/artifacts/taktchase-0.0.1-linux.zip"
