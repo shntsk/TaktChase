@@ -34,6 +34,7 @@ import (
 	"github.com/shntsk/taktchase/app/database"
 	"github.com/shntsk/taktchase/app/osuapi"
 	"github.com/shntsk/taktchase/app/settings"
+	appUtils "github.com/shntsk/taktchase/app/utils"
 	"github.com/shntsk/taktchase/build"
 	"github.com/shntsk/taktchase/framework/env"
 	"github.com/shntsk/taktchase/framework/platform"
@@ -107,6 +108,12 @@ type gioLauncherUI struct {
 	openReplay     widget.Clickable
 	loadReplay     widget.Clickable
 	replayPath     widget.Editor
+	outputNameEditor widget.Editor
+	screenshotTimeEditor widget.Editor
+	outputWatch widget.Clickable
+	outputRecord widget.Clickable
+	outputScreenshot widget.Clickable
+	configureRecording widget.Clickable
 	startButton    widget.Clickable
 	cancelButton   widget.Clickable
 	openMods       widget.Clickable
@@ -141,6 +148,8 @@ type gioLauncherUI struct {
 	watchMu       sync.Mutex
 	refreshTimer  *time.Timer
 	status        string
+	updateURL     string
+	openUpdate    widget.Clickable
 	loading       bool
 	loadingPct    float32
 	process       *exec.Cmd
@@ -231,6 +240,7 @@ func startGioLauncher() {
 	settings.General.OsuReplaysDir = conf.General.OsuReplaysDir
 
 	ui := newGioLauncherUI(l)
+	ui.checkLauncherServices()
 
 	go func() {
 		window := new(app.Window)
@@ -279,6 +289,10 @@ func newGioLauncherUI(l *launcher) *gioLauncherUI {
 	ui.searchEditor.SetText("")
 	ui.replayPath.SingleLine = true
 	ui.replayPath.SetText(l.bld.replayPath)
+	ui.outputNameEditor.SingleLine = true
+	ui.outputNameEditor.SetText(l.bld.outputName)
+	ui.screenshotTimeEditor.SingleLine = true
+	ui.screenshotTimeEditor.SetText(strconv.FormatFloat(float64(l.bld.ssTime), 'f', 2, 32))
 	ui.profileName.SingleLine = true
 	ui.profileName.SetText("My profile")
 	ui.launcherVolume.SingleLine = true
@@ -346,6 +360,38 @@ func (ui *gioLauncherUI) run(window *app.Window) error {
 			event.Frame(gtx.Ops)
 		}
 	}
+}
+
+func (ui *gioLauncherUI) checkLauncherServices() {
+	if launcherConfig.CheckForUpdates {
+		go func() {
+			status, url, err := appUtils.CheckForUpdate()
+				ui.statusMu.Lock()
+				switch status {
+				case appUtils.UpdateAvailable:
+					ui.status = "A new TaktChase version is available."
+					ui.updateURL = url
+				case appUtils.Snapshot:
+					ui.status = "You are using a snapshot build."
+					ui.updateURL = url
+				case appUtils.Failed:
+					ui.status = "Could not check for updates: " + err.Error()
+				default:
+					if !ui.loading {
+						ui.status = "TaktChase is up to date."
+					}
+				}
+				ui.statusMu.Unlock()
+				if ui.window != nil {
+					ui.window.Invalidate()
+				}
+			}()
+	}
+	go func() {
+		if err := osuapi.TryRefreshToken(); err != nil {
+			ui.setLoadState(false, "osu! token refresh failed. Reauthorize in Settings → Credentials.", 0)
+		}
+	}()
 }
 
 func (ui *gioLauncherUI) loadMaps() {
@@ -493,6 +539,12 @@ func (ui *gioLauncherUI) drawTopBar(gtx layout.Context) layout.Dimensions {
 					})
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if ui.updateURL != "" {
+						if ui.button(gtx, &ui.openUpdate, "Update available ↗", true) {
+							platform.OpenURL(ui.updateURL)
+						}
+						return layout.Dimensions{Size: gtx.Constraints.Min}
+					}
 					return ui.text(gtx, "v"+build.VERSION, 12, color.NRGBA{R: 142, G: 151, B: 175, A: 255})
 				}),
 			)
@@ -1121,6 +1173,68 @@ func (ui *gioLauncherUI) drawReplayPanel(gtx layout.Context) layout.Dimensions {
 						}),
 					)
 				}),
+				layout.Rigid(gapHeight(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, "OUTPUT MODE", 10, color.NRGBA{R: 145, G: 156, B: 183, A: 255})
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.outputWatch, "Watch", launcherConfig.CurrentPMode == Watch) {
+								launcherConfig.CurrentPMode = Watch
+								saveLauncherConfig()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(5)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.outputRecord, "Record", launcherConfig.CurrentPMode == Record) {
+								launcherConfig.CurrentPMode = Record
+								saveLauncherConfig()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(5)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.outputScreenshot, "Screenshot", launcherConfig.CurrentPMode == Screenshot) {
+								launcherConfig.CurrentPMode = Screenshot
+								saveLauncherConfig()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
+				}),
+				layout.Rigid(gapHeight(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if launcherConfig.CurrentPMode == Watch {
+						return layout.Dimensions{}
+					}
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							style := material.Editor(ui.theme, &ui.outputNameEditor, "Output file name (optional)")
+							style.TextSize = unit.Sp(12)
+							return style.Layout(gtx)
+						}),
+						layout.Rigid(gapHeight(6)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if launcherConfig.CurrentPMode != Screenshot {
+								return layout.Dimensions{}
+							}
+							style := material.Editor(ui.theme, &ui.screenshotTimeEditor, "Screenshot time (seconds)")
+							style.TextSize = unit.Sp(12)
+							return style.Layout(gtx)
+						}),
+						layout.Rigid(gapHeight(6)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.configureRecording, "Configure recording settings", false) {
+								ui.settingsCategory = "Recording"
+								ui.rebuildSettingsFields()
+								ui.page = gioPageSettings
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
+				}),
 				layout.Rigid(gapHeight(10)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -1138,7 +1252,8 @@ func (ui *gioLauncherUI) drawReplayPanel(gtx layout.Context) layout.Dimensions {
 									ui.stopGame()
 								}
 							} else {
-								ui.primaryButton(gtx, &ui.startButton, "Watch replay", ui.l.canStart())
+								ui.outputNameEditorText()
+								ui.primaryButton(gtx, &ui.startButton, "Start replay", ui.l.canStart())
 							}
 							return layout.Dimensions{Size: gtx.Constraints.Min}
 						}),
@@ -2167,7 +2282,19 @@ func (ui *gioLauncherUI) loadLatestReplay() {
 	if newest != "" { ui.loadReplayFile(newest) }
 }
 
+func (ui *gioLauncherUI) outputNameEditorText() {
+	ui.l.bld.outputName = strings.TrimSpace(ui.outputNameEditor.Text())
+	if launcherConfig.CurrentPMode == Screenshot {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(ui.screenshotTimeEditor.Text()), 32); err == nil && value >= 0 {
+			ui.l.bld.ssTime = float32(value)
+		}
+	}
+}
+
 func (ui *gioLauncherUI) launchGame() {
+	if launcherConfig.CurrentMode == Replay {
+		ui.outputNameEditorText()
+	}
 	if !ui.l.canStart() { ui.setLoadState(false, "Select a beatmap or replay first.", 0); return }
 	if ui.processActive { return }
 
