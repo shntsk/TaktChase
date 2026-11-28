@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +102,9 @@ type gioLauncherUI struct {
 	modePlay       widget.Clickable
 	modeReplay     widget.Clickable
 	reloadMaps     widget.Clickable
+	sortButton     widget.Clickable
+	sortDirection  widget.Clickable
+	randomMap      widget.Clickable
 	openReplay     widget.Clickable
 	loadReplay     widget.Clickable
 	replayPath     widget.Editor
@@ -380,14 +384,7 @@ func (ui *gioLauncherUI) loadMaps() {
 			ui.setLoadState(true, message, progress)
 		})
 
-		sort.SliceStable(maps, func(i, j int) bool {
-			left := strings.ToLower(maps[i].Name)
-			right := strings.ToLower(maps[j].Name)
-			if left == right {
-				return maps[i].Difficulty < maps[j].Difficulty
-			}
-			return left < right
-		})
+		sortMaps(maps, launcherConfig.SortMapsBy)
 
 		database.UpdateStarRating(maps, func(processed, target int, message string) {
 			progress := float32(0)
@@ -653,13 +650,10 @@ func (ui *gioLauncherUI) modeSelector(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if ui.button(gtx, &ui.modePlay, "Play", launcherConfig.CurrentMode == Play) {
 				launcherConfig.CurrentMode = Play
-				if ui.l.bld.currentMap != nil {
-					ui.l.bld.setMap(ui.l.bld.currentMap)
-				} else {
-					ui.l.bld.removeReplay()
-				}
-				ui.l.bld.currentReplay = nil
+				launcherConfig.CurrentPMode = Watch
 				ui.l.bld.replayPath = ""
+				ui.l.bld.removeReplay()
+				ui.l.bld.knockoutReplays = nil
 			}
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}),
@@ -667,13 +661,9 @@ func (ui *gioLauncherUI) modeSelector(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if ui.button(gtx, &ui.modeReplay, "Replay", launcherConfig.CurrentMode == Replay) {
 				launcherConfig.CurrentMode = Replay
-				if ui.l.bld.currentMap != nil {
-					ui.l.bld.setMap(ui.l.bld.currentMap)
-				} else {
-					ui.l.bld.removeReplay()
-				}
-				ui.l.bld.currentReplay = nil
 				ui.l.bld.replayPath = ""
+				ui.l.bld.removeReplay()
+				ui.l.bld.knockoutReplays = nil
 				ui.replayPath.SetText("")
 			}
 			return layout.Dimensions{Size: gtx.Constraints.Min}
@@ -698,7 +688,7 @@ func (ui *gioLauncherUI) drawCompactLibrary(gtx layout.Context) layout.Dimension
 				}),
 				layout.Rigid(gapHeight(10)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					style := material.Editor(ui.theme, &ui.searchEditor, "Search maps…")
+					style := material.Editor(ui.theme, &ui.searchEditor, "Search maps…  (stars>5, bpm<180)")
 					style.Color = color.NRGBA{R: 235, G: 238, B: 247, A: 255}
 					style.HintColor = color.NRGBA{R: 115, G: 126, B: 151, A: 255}
 					dims := style.Layout(gtx)
@@ -709,7 +699,38 @@ func (ui *gioLauncherUI) drawCompactLibrary(gtx layout.Context) layout.Dimension
 					}
 					return dims
 				}),
-				layout.Rigid(gapHeight(9)),
+				layout.Rigid(gapHeight(8)),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return ui.text(gtx, "SORT", 9, color.NRGBA{R: 127, G: 139, B: 164, A: 255})
+						}),
+						layout.Rigid(gapWidth(7)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.sortButton, launcherConfig.SortMapsBy.String()+"  ▾", false) {
+								ui.cycleMapSort()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Rigid(gapWidth(6)),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							label := "Ascending"
+							if !launcherConfig.SortAscending { label = "Descending" }
+							if ui.button(gtx, &ui.sortDirection, label, false) {
+								launcherConfig.SortAscending = !launcherConfig.SortAscending
+								saveLauncherConfig()
+								ui.filterMaps()
+							}
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if ui.button(gtx, &ui.randomMap, "Random", false) { ui.selectRandomMap() }
+							return layout.Dimensions{Size: gtx.Constraints.Min}
+						}),
+					)
+				}),
+				layout.Rigid(gapHeight(8)),
 				layout.Flexed(1, ui.drawMapRows),
 				layout.Rigid(gapHeight(8)),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -731,6 +752,40 @@ func (ui *gioLauncherUI) drawCompactLibrary(gtx layout.Context) layout.Dimension
 			)
 		})
 	})
+}
+
+func (ui *gioLauncherUI) selectBeatmap(bMap *beatmap.BeatMap) {
+	if bMap == nil {
+		return
+	}
+	ui.l.bld.setMap(bMap)
+	ui.selectedMod = difficulty.None
+	ui.rebuildModSettings(difficulty.None)
+	launcherConfig.CurrentMode = Play
+	launcherConfig.CurrentPMode = Watch
+	ui.page = gioPageHome
+	saveLauncherConfig()
+}
+
+func (ui *gioLauncherUI) cycleMapSort() {
+	index := 0
+	for i, method := range sortMethods {
+		if method == launcherConfig.SortMapsBy {
+			index = i
+			break
+		}
+	}
+	launcherConfig.SortMapsBy = sortMethods[(index+1)%len(sortMethods)]
+	saveLauncherConfig()
+	ui.filterMaps()
+}
+
+func (ui *gioLauncherUI) selectRandomMap() {
+	if len(ui.filteredMaps) == 0 {
+		ui.setLoadState(false, "No maps are available for random selection.", 0)
+		return
+	}
+	ui.selectBeatmap(ui.filteredMaps[rand.Intn(len(ui.filteredMaps))])
 }
 
 func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
@@ -809,11 +864,7 @@ func (ui *gioLauncherUI) drawMapRows(gtx layout.Context) layout.Dimensions {
 			})
 		})
 		if click.Clicked(gtx) {
-			ui.l.bld.setMap(bMap)
-			ui.selectedMod = difficulty.None
-			ui.rebuildModSettings(difficulty.None)
-			launcherConfig.CurrentMode = Play
-			ui.page = gioPageHome
+			ui.selectBeatmap(bMap)
 		}
 		return layout.Inset{Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return dims
@@ -2058,17 +2109,20 @@ func gapWidth(value int) layout.Widget {
 
 func (ui *gioLauncherUI) filterMaps() {
 	query := strings.ToLower(strings.TrimSpace(ui.searchEditor.Text()))
+	terms, filters := parseQuery(query)
 	filtered := make([]*beatmap.BeatMap, 0, len(ui.l.beatmaps))
 	for _, b := range ui.l.beatmaps {
-		if query != "" {
-			haystack := strings.ToLower(b.Artist+" "+b.Name+" "+b.Difficulty+" "+b.Creator+" "+strconv.FormatInt(b.SetID, 10))
-			if !strings.Contains(haystack, query) { continue }
+		haystack := strings.ToLower(b.Artist+" "+b.Name+" "+b.Difficulty+" "+b.Creator+" "+strconv.FormatInt(b.SetID, 10))
+		if !matchTerms(haystack, terms) || !matchFilters(b, filters) {
+			continue
 		}
 		filtered = append(filtered, b)
 	}
 	sortMaps(filtered, launcherConfig.SortMapsBy)
 	ui.filteredMaps = filtered
-	if ui.window != nil { ui.window.Invalidate() }
+	if ui.window != nil {
+		ui.window.Invalidate()
+	}
 }
 
 func (ui *gioLauncherUI) chooseReplay() {
