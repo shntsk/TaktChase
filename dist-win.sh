@@ -10,9 +10,16 @@ export WINDRESFLAGS="-F pe-x86-64"
 export BUILD_DIR=./dist/build-win
 export TARGET_DIR=./dist/artifacts
 
-exec=$1
-build=$1
-ver=${1//./,}','
+version=${1#v}
+version=${version#.}
+if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+  echo "Invalid version '$version'. Expected numeric components such as 0.1.0." >&2
+  exit 1
+fi
+
+exec=$version
+build=$version
+ver=${version//./,},
 
 buildMode=${TAKTCHASE_BUILD_MODE:-"0"}
 
