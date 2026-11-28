@@ -48,8 +48,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git curl unzip pkg-config \
-            libx11-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev \
-            libxext-dev libxxf86vm-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libx11-dev libx11-xcb-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev \
+            libxkbcommon-x11-dev libxext-dev libxxf86vm-dev libgl1-mesa-dev libegl1-mesa-dev \
             libgtk-3-dev libasound2-dev libwayland-dev libxkbcommon-dev wayland-protocols \
             libvulkan-dev
       - uses: actions/setup-go@v5
